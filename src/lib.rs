@@ -48,7 +48,7 @@ impl<'a> VariableName<'a> {
         let s = self.start.unwrap();
         // Get the identifier range
         let ident_range = {
-        let delta = self.text[s..]
+        self.end = Some({s + self.text[s..]
                 .char_indices()
                 .take_while(|(_, c)| {
                     if is_quoted {
@@ -57,11 +57,15 @@ impl<'a> VariableName<'a> {
                         !(*c).is_whitespace()
                     }
                 })
-                .count();
-            s..(s + delta)
+                .count()});
+            s..(self.end.unwrap())
         };
 
         &self.text[ident_range]
+    }
+
+    pub fn end(&self) -> Option<usize> {
+        self.end
     }
 }
 
