@@ -2,16 +2,16 @@ pub enum ParserState<'a> {
     Let,
     VariableList,
     Variable,
-    VariableName(VariableName<'a>),
+    VariableName(Identifier<'a>),
 }
 
-pub struct VariableName<'a> {
+pub struct Identifier<'a> {
     text: &'a str,
     start: Option<usize>,
     end: Option<usize>,
 }
 
-impl<'a> VariableName<'a> {
+impl<'a> Identifier<'a> {
     fn new(text: &'a str) -> Self {
         Self {
             text,
@@ -97,8 +97,8 @@ impl<'state> Parser<'state> {
     pub fn parse(&mut self, text: &'state str) {
         // This takes us past the let statement
         // Skip the Variable List state, because we know where we are.
-        self.parser_state = ParserState::VariableName(VariableName::new(text));
-        let mut subparser = VariableName::new(text);
+        self.parser_state = ParserState::VariableName(Identifier::new(text));
+        let mut subparser = Identifier::new(text);
         // Skip let part of the statement
         let ident = subparser.parse(3);
         // Go on to just pass the = sign
@@ -140,7 +140,7 @@ mod tests {
     #[case(r##"#"Malformed name"##, "Malformed name")]
     #[case("ThisIsTheEND", "ThisIsTheEND")]
     fn test_parse_variable_name(#[case] input: &str, #[case] expected: &str) {
-        let mut parser = VariableName::new(input);
+        let mut parser = Identifier::new(input);
         let out = parser.parse(0);
         assert_eq!(expected, out)
     }
