@@ -31,53 +31,48 @@ impl Parser {
 
 /// Used to parse A variable name.
 fn parse_variable_name<'txt>(text: &'txt str) -> &'txt str {
-    let mut is_quoted = false;
-
-
     // Get the start of the identifier
     let (ident_start, _) = text
-        .chars()
-        .enumerate()
-        .take_while(|(i, c)| (*c).is_whitespace())
+        .char_indices()
+        .take_while(|(_, c)| (*c).is_whitespace())
         .last()
         .unwrap_or((0, ' '));
-
 
     let ident_text: &str;
     if ident_start == 0 {
         ident_text = &text;
-    }
-    else {
-        ident_text = &text[ident_start+1..];
+    } else {
+        ident_text = &text[ident_start + 1..];
     }
 
-    //
+    // Check if it is a Quoted Identifier
+    let mut is_quoted = false;
     if ident_text.starts_with("#") {
         is_quoted = true;
     }
 
-    let mut start: usize = 0;
-    let mut end: usize;
-
-    if is_quoted {
-        start = 2;
-        (end, _) = ident_text
+    // Get the Identifer range
+    let ident_range = if is_quoted {
+        let (end, _) = ident_text
             .chars()
             .enumerate()
             .skip(2)
-            .take_while(|(i, c)| *c != '"')
+            .take_while(|(_, c)| *c != '"')
             .last()
-            .unwrap()
+            .unwrap();
+        // because we skip the first two characters
+        2..=end
     } else {
-        (end, _) = ident_text
+        let (end, _) = ident_text
             .chars()
             .enumerate()
-            .take_while(|(i, c)| !(*c).is_whitespace())
+            .take_while(|(_, c)| !(*c).is_whitespace())
             .last()
-            .unwrap()
-    }
+            .unwrap();
+        0..=end
+    };
 
-    &ident_text[start..end + 1]
+    &ident_text[ident_range]
 }
 struct Variable {
     identifier: &'static str,
