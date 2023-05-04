@@ -19,6 +19,54 @@ impl<'a> VariableName<'a> {
             end: None,
         }
     }
+
+    pub(crate) fn parse(&mut self, start: usize) -> &str {
+        // Get the start of the identifier
+        let ident_offset = self.text[start..]
+            .char_indices()
+            .take_while(|(_, c)| (*c).is_whitespace())
+            .count();
+
+        let ident_text: &str;
+
+        if ident_offset == 0 {
+            self.start = Some(start);
+            ident_text = &self.text;
+        } else {
+            self.start = Some(start + ident_offset);
+            ident_text = &self.text[start + ident_offset..];
+        }
+        // Check if it is a Quoted Identifier
+        let is_quoted = if ident_text.starts_with("#") {
+            // Can unwrap because we know we have initialized the value already ^^^
+            self.start = Some(self.start.unwrap() + 2);
+            true
+        } else {
+            false
+        };
+
+
+        let s = self.start.unwrap();
+        // Get the Identifer range
+        let ident_range = if is_quoted {
+            let delta = self.text[s..]
+                .char_indices()
+                .take_while(|(_, c)| *c != '"')
+                .count();
+
+            // because we skip the first two characters
+            s.. (s + delta)
+        } else {
+            let delta = self.text[s..]
+                .char_indices()
+                .take_while(|(_, c)| !(*c).is_whitespace())
+                .count();
+            s..(s + delta)
+        };
+
+        // because we skip the first two characters
+        &self.text[ident_range]
+    }
 }
 
 pub struct Parser<'state> {
@@ -135,7 +183,8 @@ mod tests {
     #[case(r##"#"Malformed name"##, "Malformed name")]
     #[case("ThisIsTheEND", "ThisIsTheEND")]
     fn test_parse_variable_name(#[case] input: &str, #[case] expected: &str) {
-        let out = parse_variable_name(input);
+        let mut parser = VariableName::new(input);
+        let out = parser.parse(0);
         assert_eq!(expected, out)
     }
 }
