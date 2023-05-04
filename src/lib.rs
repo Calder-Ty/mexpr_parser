@@ -1,16 +1,32 @@
-pub enum ParserState {
+pub enum ParserState<'a> {
     Let,
     VariableList,
     Variable,
-    VariableName,
+    VariableName(VariableName<'a>),
 }
 
-pub struct Parser {
-    variables: Vec<&'static str>,
-    parser_state: ParserState,
+pub struct VariableName<'a> {
+    text: &'a str,
+    start: Option<usize>,
+    end: Option<usize>,
 }
 
-impl Default for Parser {
+impl<'a> VariableName<'a> {
+    fn new(text: &'a str) -> Self {
+        Self {
+            text,
+            start: None,
+            end: None,
+        }
+    }
+}
+
+pub struct Parser<'state> {
+    variables: Vec<&'state str>,
+    parser_state: ParserState<'state>,
+}
+
+impl<'state> Default for Parser<'state> {
     fn default() -> Self {
         Self {
             variables: Vec::default(),
@@ -19,13 +35,24 @@ impl Default for Parser {
     }
 }
 
-impl Parser {
-    pub fn parse<'txt>(&mut self, text: &'txt str) {
+///
+/// let-expression:
+///     <let> variable-list <in> expression
+/// variable-list:
+///     variable
+///     variable <,> variable-list
+/// variable:
+///     variable-name <=> expression
+/// variable-name:
+///     identifier
+impl<'state> Parser<'state> {
+    pub fn parse(&mut self, text: &'state str) {
         // This takes us past the let statement
         // Skip the Variable List state, because we know where we are.
-        self.parser_state = ParserState::VariableName;
-        // FIXME: Make sure i don't read too far
+        self.parser_state = ParserState::VariableName(VariableName::new(text));
+        // Skip let part of the statement
         let ident = parse_variable_name(&text[3..]);
+        // Go on to just pass the = sign
     }
 }
 
