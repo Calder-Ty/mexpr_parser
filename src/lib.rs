@@ -45,26 +45,22 @@ impl<'a> VariableName<'a> {
             false
         };
 
-
         let s = self.start.unwrap();
-        // Get the Identifer range
-        let ident_range = if is_quoted {
-            let delta = self.text[s..]
+        // Get the identifier range
+        let ident_range = {
+        let delta = self.text[s..]
                 .char_indices()
-                .take_while(|(_, c)| *c != '"')
-                .count();
-
-            // because we skip the first two characters
-            s.. (s + delta)
-        } else {
-            let delta = self.text[s..]
-                .char_indices()
-                .take_while(|(_, c)| !(*c).is_whitespace())
+                .take_while(|(_, c)| {
+                    if is_quoted {
+                        *c != '"'
+                    } else {
+                        !(*c).is_whitespace()
+                    }
+                })
                 .count();
             s..(s + delta)
         };
 
-        // because we skip the first two characters
         &self.text[ident_range]
     }
 }
@@ -98,57 +94,14 @@ impl<'state> Parser<'state> {
         // This takes us past the let statement
         // Skip the Variable List state, because we know where we are.
         self.parser_state = ParserState::VariableName(VariableName::new(text));
+        let mut subparser = VariableName::new(text);
         // Skip let part of the statement
-        let ident = parse_variable_name(&text[3..]);
+        let ident = subparser.parse(3);
         // Go on to just pass the = sign
     }
 }
 
 /// Used to parse A variable name.
-fn parse_variable_name<'txt>(text: &'txt str) -> &'txt str {
-    // Get the start of the identifier
-    let (ident_start, _) = text
-        .char_indices()
-        .take_while(|(_, c)| (*c).is_whitespace())
-        .last()
-        .unwrap_or((0, ' '));
-
-    let ident_text: &str;
-    if ident_start == 0 {
-        ident_text = &text;
-    } else {
-        ident_text = &text[ident_start + 1..];
-    }
-
-    // Check if it is a Quoted Identifier
-    let mut is_quoted = false;
-    if ident_text.starts_with("#") {
-        is_quoted = true;
-    }
-
-    // Get the Identifer range
-    let ident_range = if is_quoted {
-        let (end, _) = ident_text
-            .chars()
-            .enumerate()
-            .skip(2)
-            .take_while(|(_, c)| *c != '"')
-            .last()
-            .unwrap();
-        // because we skip the first two characters
-        2..=end
-    } else {
-        let (end, _) = ident_text
-            .chars()
-            .enumerate()
-            .take_while(|(_, c)| !(*c).is_whitespace())
-            .last()
-            .unwrap();
-        0..=end
-    };
-
-    &ident_text[ident_range]
-}
 struct Variable {
     identifier: &'static str,
     value: MExpression,
