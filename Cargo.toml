@@ -1,0 +1,7 @@
+[package]
+name = "mexpr_parser"
+version = "0.1.0"
+edition = "2021"
+
+[dev-dependencies]
+rstest = "0.17.0"
