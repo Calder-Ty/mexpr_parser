@@ -11,6 +11,12 @@ pub struct Identifier<'a> {
     end: Option<usize>,
 }
 
+fn is_identifier_part(c: &char) -> bool {
+    c.is_alphabetic() || c.is_digit(10) || *c == '_' || *c == '.'
+                                                      // For now just '.', rather than finding a 
+                                                      // group for Mn, Mc or Pc
+}
+
 impl<'a> Identifier<'a> {
     fn new(text: &'a str) -> Self {
         Self {
@@ -48,16 +54,18 @@ impl<'a> Identifier<'a> {
         let s = self.start.unwrap();
         // Get the identifier range
         let ident_range = {
-        self.end = Some({s + self.text[s..]
-                .char_indices()
-                .take_while(|(_, c)| {
-                    if is_quoted {
-                        *c != '"'
-                    } else {
-                        !(*c).is_whitespace()
-                    }
-                })
-                .count()});
+            self.end = Some({
+                s + self.text[s..]
+                    .char_indices()
+                    .take_while(|(_, c)| {
+                        if is_quoted {
+                            *c != '"'
+                        } else {
+                            is_identifier_part(c)
+                        }
+                    })
+                    .count()
+            });
             s..(self.end.unwrap())
         };
 
@@ -132,6 +140,7 @@ mod tests {
 
     #[rstest]
     #[case("This = Not a variable", "This")]
+    #[case("This=Not a variable", "This")]
     #[case("   This = Not a variable", "This")]
     #[case(r##"#"This is some text" = Not a variable"##, "This is some text")]
     #[case(r##"   #"This is some text" = Not a variable"##, "This is some text")]
