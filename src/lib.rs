@@ -1,3 +1,13 @@
+use thiserror::Error;
+
+type ParseResult<T> = Result<(usize, T), Box<ParseError>>;
+
+#[derive(Debug, Error)]
+enum ParseError {
+    #[error("Input is Invalid, Unable to proceed")]
+    InvalidInput,
+}
+
 pub enum ParserState<'a> {
     Let,
     VariableList,
@@ -5,16 +15,23 @@ pub enum ParserState<'a> {
     VariableName(Identifier<'a>),
 }
 
+fn is_identifier_part(c: &char) -> bool {
+    // For now just '.', rather than finding a group for Mn, Mc or Pc
+    // to represent continuation characters
+    c.is_alphabetic() || c.is_digit(10) || *c == '_' || *c == '.'
+}
+
+#[inline]
+fn skip_whitespace(text: &str) -> usize {
+    text.char_indices()
+        .take_while(|(_, c)| (*c).is_whitespace())
+        .count()
+}
+
 pub struct Identifier<'a> {
     text: &'a str,
     start: Option<usize>,
     end: Option<usize>,
-}
-
-fn is_identifier_part(c: &char) -> bool {
-    c.is_alphabetic() || c.is_digit(10) || *c == '_' || *c == '.'
-                                                      // For now just '.', rather than finding a 
-                                                      // group for Mn, Mc or Pc
 }
 
 impl<'a> Identifier<'a> {
@@ -53,27 +70,29 @@ impl<'a> Identifier<'a> {
 
         let s = self.start.unwrap();
         // Get the identifier range
-        let ident_range = {
-            self.end = Some({
-                s + self.text[s..]
-                    .char_indices()
-                    .take_while(|(_, c)| {
-                        if is_quoted {
-                            *c != '"'
-                        } else {
-                            is_identifier_part(c)
-                        }
-                    })
-                    .count()
-            });
-            s..(self.end.unwrap())
-        };
+        self.end = Some({
+            s + self.text[s..]
+                .char_indices()
+                .take_while(|(_, c)| {
+                    if is_quoted {
+                        *c != '"'
+                    } else {
+                        is_identifier_part(c)
+                    }
+                })
+                .count()
+        });
 
-        &self.text[ident_range]
+        &self.text()
     }
 
     pub fn end(&self) -> Option<usize> {
         self.end
+    }
+
+    pub fn text(&self) -> &str {
+        // Eventually fix this with Valid States
+        &self.text[self.start.unwrap()..self.end.unwrap()]
     }
 }
 
@@ -91,7 +110,6 @@ impl<'state> Default for Parser<'state> {
     }
 }
 
-///
 /// let-expression:
 ///     <let> variable-list <in> expression
 /// variable-list:
@@ -109,32 +127,213 @@ impl<'state> Parser<'state> {
         let mut subparser = Identifier::new(text);
         // Skip let part of the statement
         let ident = subparser.parse(3);
-        // Go on to just pass the = sign
+        // split on the = sign, now pass that in
+        let var_txt = text[subparser.end().unwrap() + 1..]
+            .splitn(2, '=')
+            .last()
+            .unwrap();
+        // let supbarser = MExpresion::parse(var_txt);
     }
 }
 
 /// Used to parse A variable name.
-struct Variable {
-    identifier: &'static str,
-    value: MExpression,
+struct Variable<'a> {
+    identifier: &'a str,
+    value: PrimaryExpression<'a>,
 }
 
-enum MExpression {
-    InvokeExpression(ArgumentList),
-    Value(ValueType),
+// primary-expression:
+//       literal-expression
+//       list-expression
+//       record-expression
+// x       identifier-expression
+//       section-access-expression
+//       parenthesized-expression
+//       field-access-expression
+//       item-access-expression
+//       invoke-expression
+//       not-implemented-expression
+//
+/// For now We are only implementing a parser for Identifier Expression and
+/// Invoke Expressions. This is the minimum we need for the task.
+enum PrimaryExpression<'a> {
+    /// invoke-expression:
+    ///     primary-expression <(> argument-listopt <)>
+    /// argument-list:
+    ///     expression
+    ///     expression , argument-list
+    IdentifierExpression(Identifier<'a>),
+    InvokeExpression(Box<Invocation<'a>>),
+    LiteralExpression(Literal<'a>),
 }
 
-enum ValueType {
-    StringLiteral(&'static str),
-    Integer(isize),
+impl<'a> PrimaryExpression<'a> {
+    // parses the stuff and returns an instance of itself
+    fn try_parse(text: &str) -> Result<(usize, Self), ParseError> {
+        unimplemented!()
+    }
 }
 
-struct ArgumentList {
-    pub args: Vec<MExpression>,
+/// Literal:
+///     LogicalLiteral
+///     NumberLiteral
+///     TextLiteral
+///     NullLiteral
+///     VerbatimLiteral
+enum Literal<'a> {
+    /// LogicalLiteral
+    ///     true
+    ///     false
+    LogicalLiteral(bool),
+    ///
+    TextLiteral(&'a str),
+    ///
+    NumberLiteral(isize),
+    ///
+    NullLiteral,
+    ///
+    VerbatimLiteral,
+}
+
+impl<'a> Literal<'a> {
+    pub fn try_parse(text: &'a str) -> ParseResult<Self> {
+        // First Try Logical
+        if let Ok(val) = Self::try_parse_logical(text) {
+            return Ok(val);
+        };
+
+        if let Ok(val) = Self::try_parse_text(text) {
+            return Ok(val);
+        };
+
+        return Err(Box::new(ParseError::InvalidInput));
+    }
+
+    fn try_parse_logical(text: &str) -> ParseResult<Self> {
+        // true?
+        let text_start = skip_whitespace(text);
+        if &text[text_start..text_start + 4] == "true" {
+            return Ok((text_start + 4, Self::LogicalLiteral(true)));
+        }
+        if &text[text_start..text_start + 5] == "false" {
+            return Ok((text_start + 4, Self::LogicalLiteral(false)));
+        }
+        Err(Box::new(ParseError::InvalidInput))
+    }
+
+    fn try_parse_text(text: &'a str) -> ParseResult<Self> {
+        // is there the initial `"`?
+        let text_start = skip_whitespace(text);
+        if &text.chars().nth(text_start).unwrap_or(' ') == &'"' {
+            // Find the terminal `"`? Remember Escapes!
+            let mut in_escape = false;
+            let mut skip = false;
+            let mut final_i = text_start;
+            for (i, c) in text[text_start..].char_indices() {
+                final_i = i;
+                // In Skip state, we are skipping the next character.
+                if skip {
+                    skip = false;
+                    continue;
+                }
+                if !in_escape {
+                    //check for escape sequence
+                    if c == '"' && i != 0 {
+                        // Possibly End?
+                        if text.chars().nth(i + 1).unwrap_or(' ') == '"' {
+                            skip = true;
+                            continue;
+                        }
+                        // THE END OF THE TEXT
+                        break;
+                    }
+                    if c == '#' && text.chars().nth(i + 1).unwrap_or(' ') == '(' {
+                        in_escape = true;
+                        skip = true;
+                        continue;
+                    }
+                } else {
+                    // TODO: Validate the escape characters are valid
+                    if c == ')' {
+                        in_escape = false;
+                    }
+                    continue;
+                }
+            }
+            if in_escape {
+                // Uh OH
+                return Err(Box::new(ParseError::InvalidInput));
+            }
+            Ok((final_i, Self::TextLiteral(&text[text_start..=final_i])))
+        } else {
+            Err(Box::new(ParseError::InvalidInput))
+        }
+    }
+}
+
+struct InvocationParser<'a> {
+    text: &'a str,
+    start: usize,
+    end: Option<usize>,
+}
+
+impl<'a> InvocationParser<'a> {
+    fn new(text: &'a str, start: usize) -> Self {
+        Self {
+            text,
+            start,
+            end: None,
+        }
+    }
+
+    pub fn try_parse(self) -> ParseResult<Invocation<'a>> {
+        // To start, we need to identifiy the calling Expresion. Lets try:
+        let mut invoker = Identifier::new(self.text);
+        invoker.parse(self.start);
+        // For and invocation we expect that we can be in a call so lets try something here:
+        let mut args = vec![];
+        // parsing the function calls
+        let arglist = &self.text[invoker.end.unwrap()..];
+        // Skip the Calling Parenthesis
+        let mut arglist_start = arglist
+            .char_indices()
+            .take_while(|(_, c)| *c != '(')
+            .count();
+        // Now we need to Parse the contents of the function invocation
+        loop {
+            let (delta, arg) = PrimaryExpression::try_parse(&self.text[arglist_start..])?;
+            args.push(arg);
+            arglist_start += delta;
+            // Handle whitspace, incase we have a pyscho
+            if self.text[arglist_start..]
+                .chars()
+                .skip_while(|c| (*c).is_whitespace())
+                .nth(0)
+                .unwrap()
+                == ')'
+            {
+                break;
+            }
+        }
+
+        Ok((
+            arglist_start,
+            Invocation {
+                invoker: PrimaryExpression::IdentifierExpression(invoker),
+                args,
+            },
+        ))
+    }
+}
+
+struct Invocation<'a> {
+    pub invoker: PrimaryExpression<'a>,
+    pub args: Vec<PrimaryExpression<'a>>,
 }
 
 #[cfg(test)]
 mod tests {
+
     use super::*;
     use rstest::rstest;
 
@@ -152,5 +351,68 @@ mod tests {
         let mut parser = Identifier::new(input);
         let out = parser.parse(0);
         assert_eq!(expected, out)
+    }
+
+    // #[rstest]
+    fn test_invokation_parser() {
+        let input_text = "This('Not a variable')";
+        let mut parser = InvocationParser::new(input_text, 0);
+        let (_, invokation) = parser
+            .try_parse()
+            .expect(format!("failed to parse test input '{}'", &input_text).as_str());
+
+        if let PrimaryExpression::IdentifierExpression(invoker) = invokation.invoker {
+            assert_eq!(invoker.text(), "This")
+        }
+    }
+
+    #[rstest]
+    #[case("true, 'more stuff', yadda yadda", Literal::LogicalLiteral(true))]
+    #[case("false, 'more stuff', yadda yadda", Literal::LogicalLiteral(false))]
+    fn test_logical_literal_parser(#[case] input: &str, #[case] expected: Literal) {
+        let (_, out) = Literal::try_parse(input).unwrap();
+        assert!(matches!(expected, out))
+    }
+
+    #[rstest]
+    #[case(
+    r##""false, 'more stuff', yadda yadda""##,
+    Literal::TextLiteral(r#""false, 'more stuff', yadda yadda""#),
+    r#""false, 'more stuff', yadda yadda""#
+    )]
+    #[case(
+    r#""""false""", More Stuff"#,
+    Literal::TextLiteral(r#""""false""""#),
+    r#""""false""""#
+    )]
+    #[case(
+        r#""This is some#(tab) text", More Stuff"#,
+        Literal::TextLiteral(r#""This is some#(tab) text""#),
+        r#""This is some#(tab) text""#,
+    )]
+    #[case(r#" """""""" "#, Literal::TextLiteral(r#""""""""""#), r#""""""""""#)]
+    fn test_text_literal_parser(
+        #[case] input: &str,
+        #[case] expected: Literal,
+        #[case] value: &str,
+    ) {
+        let (_, out) = Literal::try_parse(input).unwrap();
+        assert!(matches!(expected, out));
+        match out {
+            Literal::TextLiteral(text) => assert_eq!(value, text),
+            _ => unreachable!(),
+        }
+    }
+
+    #[rstest]
+    #[case("    nottext, 'more stuff', yadda yadda")]
+    // Should we Have this, or should we let people write bad text?
+    #[case("Broken escape #(lt")]
+    fn text_literal_parser_errors(#[case] input: &str) {
+        let out =Literal::try_parse(input);
+        match out {
+            Err(_) => assert!(true),
+            _ => assert!(false)
+        }
     }
 }
