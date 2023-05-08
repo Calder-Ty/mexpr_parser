@@ -202,6 +202,10 @@ impl<'a> Literal<'a> {
             return Ok(val);
         };
 
+        if let Ok(val) = Self::try_parse_null(text) {
+            return Ok(val);
+        }
+
         if let Ok(val) = Self::try_parse_text(text) {
             return Ok(val);
         };
@@ -267,6 +271,27 @@ impl<'a> Literal<'a> {
             Ok((final_i, Self::TextLiteral(&text[text_start..=final_i])))
         } else {
             Err(Box::new(ParseError::InvalidInput))
+        }
+    }
+
+    fn try_parse_null(text: &'a str) -> ParseResult<Self> {
+        let text_start = skip_whitespace(text);
+        // What if Null is the Final entity?
+        if text[text_start..].len() == 4 {
+            if &text[text_start..=text_start + 3] == "null" {
+                // Still Plus 4 because we want the next thing to point to the end of the string,
+                // not "l" (i.e) the value we pass out should == len of the text
+                assert!(text.len() == text_start + 4);
+                Ok((text_start + 4, Literal::NullLiteral))
+            } else {
+                Err(Box::new(ParseError::InvalidInput))
+            }
+        } else {
+            if &text[text_start..=text_start + 4] == "null " {
+                Ok((text_start + 4, Literal::NullLiteral))
+            } else {
+                Err(Box::new(ParseError::InvalidInput))
+            }
         }
     }
 }
@@ -376,19 +401,19 @@ mod tests {
 
     #[rstest]
     #[case(
-    r##""false, 'more stuff', yadda yadda""##,
-    Literal::TextLiteral(r#""false, 'more stuff', yadda yadda""#),
-    r#""false, 'more stuff', yadda yadda""#
+        r##""false, 'more stuff', yadda yadda""##,
+        Literal::TextLiteral(r#""false, 'more stuff', yadda yadda""#),
+        r#""false, 'more stuff', yadda yadda""#
     )]
     #[case(
-    r#""""false""", More Stuff"#,
-    Literal::TextLiteral(r#""""false""""#),
-    r#""""false""""#
+        r#""""false""", More Stuff"#,
+        Literal::TextLiteral(r#""""false""""#),
+        r#""""false""""#
     )]
     #[case(
         r#""This is some#(tab) text", More Stuff"#,
         Literal::TextLiteral(r#""This is some#(tab) text""#),
-        r#""This is some#(tab) text""#,
+        r#""This is some#(tab) text""#
     )]
     #[case(r#" """""""" "#, Literal::TextLiteral(r#""""""""""#), r#""""""""""#)]
     fn test_text_literal_parser(
@@ -409,10 +434,19 @@ mod tests {
     // Should we Have this, or should we let people write bad text?
     #[case("Broken escape #(lt")]
     fn text_literal_parser_errors(#[case] input: &str) {
-        let out =Literal::try_parse(input);
+        let out = Literal::try_parse(input);
         match out {
             Err(_) => assert!(true),
-            _ => assert!(false)
+            _ => assert!(false),
         }
+    }
+
+    #[rstest]
+    #[case(r#" null "#)]
+    #[case(r#"null "#)]
+    #[case(r#"null"#)]
+    fn null_literal_parser(#[case] input: &str) {
+        let (_, out) = Literal::try_parse_null(input).unwrap();
+        assert!(matches!(Literal::NullLiteral, out));
     }
 }
