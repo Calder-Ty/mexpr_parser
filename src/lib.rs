@@ -2,6 +2,11 @@ use thiserror::Error;
 
 type ParseResult<T> = Result<(usize, T), Box<ParseError>>;
 
+const HEX_DIGITS: [char; 22] = [
+    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'a', 'b', 'c',
+    'd', 'e', 'f',
+];
+
 #[derive(Debug, Error)]
 enum ParseError {
     #[error("Input is Invalid, Unable to proceed")]
@@ -181,18 +186,16 @@ impl<'a> PrimaryExpression<'a> {
 ///     NullLiteral
 ///     VerbatimLiteral
 enum Literal<'a> {
-    /// LogicalLiteral
-    ///     true
-    ///     false
     LogicalLiteral(bool),
-    ///
     TextLiteral(&'a str),
-    ///
-    NumberLiteral(isize),
-    ///
+    NumberLiteral(NumberType),
     NullLiteral,
-    ///
     VerbatimLiteral,
+}
+
+enum NumberType {
+    Int(isize),
+    Float(f64),
 }
 
 impl<'a> Literal<'a> {
@@ -207,6 +210,10 @@ impl<'a> Literal<'a> {
         }
 
         if let Ok(val) = Self::try_parse_text(text) {
+            return Ok(val);
+        };
+
+        if let Ok(val) = Self::try_parse_number(text) {
             return Ok(val);
         };
 
@@ -292,6 +299,62 @@ impl<'a> Literal<'a> {
             } else {
                 Err(Box::new(ParseError::InvalidInput))
             }
+        }
+    }
+
+    // number-literal:
+    //      decimal-number-literal
+    //      hexadecimal-number-literal
+    // decimal-digits:
+    //      decimal-digit decimal-digitsopt
+    // decimal-digit: one of
+    //      0 1 2 3 4 5 6 7 8 9
+    // hexadecimal-number-literal:
+    //      0x hex-digits
+    //      0X hex-digits
+    // hex-digits:
+    //      hex-digit hex-digitsopt
+    //      hex-digit: one of
+    //      0 1 2 3 4 5 6 7 8 9 A B C D E F a b c d e f
+    // decimal-number-literal:
+    //      decimal-digits . decimal-digits
+    //      exponent-partopt
+    //      . decimal-digits
+    //      exponent-partopt
+    //      decimal-digits
+    //      exponent-partopt
+    // exponent-part:
+    //      e signopt
+    // decimal-digits
+    //      E signopt
+    //      decimal-digits
+    // sign: one of
+    //      + -
+    fn try_parse_number(text: &'a str) -> ParseResult<Self> {
+        let num_start = skip_whitespace(text);
+        if text[num_start..].starts_with("0x") || text[num_start..].starts_with("0X") {
+            // Hex number
+            let num_end = text[num_start + 2..]
+                .chars()
+                .take_while(|c| HEX_DIGITS.contains(c))
+                .count()
+                + (num_start + 2); //To account for the skipped indicies at the start
+
+            // TODO: What if the next character is an invalid character for this to be a number-literal
+            if num_end == 0 {
+                // Hex digit must have _a_ value
+                return Err(Box::new(ParseError::InvalidInput));
+            } else {
+                dbg!(&text[num_start + 2..num_end]);
+                return Ok((
+                    num_end,
+                    Self::NumberLiteral(NumberType::Int(
+                        isize::from_str_radix(&text[num_start + 2..num_end], 16).unwrap(),
+                    )),
+                ));
+            }
+        } else {
+            unimplemented!()
         }
     }
 }
@@ -421,7 +484,7 @@ mod tests {
         #[case] expected: Literal,
         #[case] value: &str,
     ) {
-        let (_, out) = Literal::try_parse(input).unwrap();
+        let (_, out) = Literal::try_parse_text(input).unwrap();
         assert!(matches!(expected, out));
         match out {
             Literal::TextLiteral(text) => assert_eq!(value, text),
@@ -434,7 +497,7 @@ mod tests {
     // Should we Have this, or should we let people write bad text?
     #[case("Broken escape #(lt")]
     fn text_literal_parser_errors(#[case] input: &str) {
-        let out = Literal::try_parse(input);
+        let out = Literal::try_parse_text(input);
         match out {
             Err(_) => assert!(true),
             _ => assert!(false),
@@ -448,5 +511,43 @@ mod tests {
     fn null_literal_parser(#[case] input: &str) {
         let (_, out) = Literal::try_parse_null(input).unwrap();
         assert!(matches!(Literal::NullLiteral, out));
+    }
+
+    #[rstest]
+    // #[case(r#"0x1234"#, Literal::NumberLiteral(NumberType::Int(0x1234)), 0x1234)]
+    // #[case(r#"0X1234"#, Literal::NumberLiteral(NumberType::Int(0x1234)), 0x1234)]
+    // #[case(r#"0X1234,"#, Literal::NumberLiteral(NumberType::Int(0x1234)), 0x1234)]
+    // #[case(r#"0x1234,"#, Literal::NumberLiteral(NumberType::Int(0x1234)), 0x1234)]
+    // #[case(
+    //     r#"0X1234  ,"#,
+    //     Literal::NumberLiteral(NumberType::Int(0x1234)),
+    //     0x1234
+    // )]
+    // #[case(
+    //     r#"0x1234  ,"#,
+    //     Literal::NumberLiteral(NumberType::Int(0x1234)),
+    //     0x1234
+    // )]
+    #[case(
+        r#"   0X1234  ,"#,
+        Literal::NumberLiteral(NumberType::Int(0x1234)),
+        0x1234
+    )]
+    #[case(
+        r#"   0x1234  ,"#,
+        Literal::NumberLiteral(NumberType::Int(0x1234)),
+        0x1234
+    )]
+    fn hex_int_literal_parser(
+        #[case] input: &str,
+        #[case] expected: Literal,
+        #[case] value: isize,
+    ) {
+        let (_, out) = Literal::try_parse_number(input).unwrap();
+        assert!(matches!(expected, out));
+        match out {
+            Literal::NumberLiteral(NumberType::Int(v)) => assert_eq!(v, value),
+            _ => assert!(false),
+        }
     }
 }
