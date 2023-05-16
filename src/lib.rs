@@ -392,16 +392,17 @@ impl<'a> Literal<'a> {
             let mut exponent_iter = text[num_end..].char_indices();
             let mut signed = false;
             if [(0, 'E'), (0, 'e')].contains(&exponent_iter.next().unwrap_or((0, ' '))) {
-                let delta = exponent_iter.take_while(|(i, c)| {
-                    // -/+ are valid values for a number to take in the first position
-                    if (*c == '-' || *c == '+') && *i == 1_usize {
-                        signed = true;
-                        true
-                    } else {
-                        (*c).is_digit(10)
-                    }
-
-                }).count();
+                let delta = exponent_iter
+                    .take_while(|(i, c)| {
+                        // -/+ are valid values for a number to take in the first position
+                        if (*c == '-' || *c == '+') && *i == 1_usize {
+                            signed = true;
+                            true
+                        } else {
+                            (*c).is_digit(10)
+                        }
+                    })
+                    .count();
 
                 if delta > 0 {
                     num_end += delta + 1; // To account for the E/e
@@ -478,7 +479,6 @@ struct Invocation<'a> {
 
 #[cfg(test)]
 mod tests {
-
     use super::*;
     use rstest::rstest;
 
