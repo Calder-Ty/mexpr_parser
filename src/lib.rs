@@ -344,7 +344,7 @@ impl<'a> Literal<'a> {
                 + (num_start + 2); //To account for the skipped indicies at the start
 
             // TODO: What if the next character is an invalid character for this to be a number-literal
-            if num_end == 0 {
+            if num_end == num_start + 2 {
                 // Hex digit must have _a_ value
                 return Err(Box::new(ParseError::InvalidInput));
             } else {
@@ -604,6 +604,16 @@ mod tests {
         assert!(matches!(expected, out));
         match out {
             Literal::NumberLiteral(NumberType::Int(v)) => assert_eq!(v, value),
+            _ => assert!(false),
+        }
+    }
+
+    #[rstest]
+    #[case("0Xyz")]
+    fn text_hex_parser_fails(#[case] input: &str) {
+        let out = Literal::try_parse_number(input);
+        match out {
+            Err(_) => assert!(true),
             _ => assert!(false),
         }
     }
