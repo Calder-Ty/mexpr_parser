@@ -1,5 +1,3 @@
-use std::num;
-
 use thiserror::Error;
 
 type ParseResult<T> = Result<(usize, T), Box<ParseError>>;
@@ -20,7 +18,7 @@ pub enum ParserState<'a> {
 fn is_identifier_part(c: &char) -> bool {
     // For now just '.', rather than finding a group for Mn, Mc or Pc
     // to represent continuation characters
-    c.is_alphabetic() || c.is_digit(10) || *c == '_' || *c == '.'
+    c.is_alphabetic() || c.is_ascii_digit() || *c == '_' || *c == '.'
 }
 
 #[inline]
@@ -46,11 +44,7 @@ impl<'a> Identifier<'a> {
     }
 
     pub(crate) fn parse(&mut self, start: usize) -> &str {
-        // Get the start of the identifier
-        let ident_offset = self.text[start..]
-            .char_indices()
-            .take_while(|(_, c)| (*c).is_whitespace())
-            .count();
+        let ident_offset = skip_whitespace(&self.text[start..]);
 
         let ident_text: &str;
 
@@ -290,12 +284,10 @@ impl<'a> Literal<'a> {
             } else {
                 Err(Box::new(ParseError::InvalidInput))
             }
+        } else if &text[text_start..=text_start + 4] == "null " {
+            Ok((text_start + 4, Literal::NullLiteral))
         } else {
-            if &text[text_start..=text_start + 4] == "null " {
-                Ok((text_start + 4, Literal::NullLiteral))
-            } else {
-                Err(Box::new(ParseError::InvalidInput))
-            }
+            Err(Box::new(ParseError::InvalidInput))
         }
     }
 
@@ -374,7 +366,7 @@ impl<'a> Literal<'a> {
                 num_end += text[num_end..]
                     .chars()
                     .skip(1)
-                    .take_while(|c| c.is_digit(10))
+                    .take_while(|c| c.is_ascii_digit())
                     .count()
                     + 1; // Plus 1 because we skipped the decimal point
 
@@ -394,7 +386,7 @@ impl<'a> Literal<'a> {
                             signed = true;
                             true
                         } else {
-                            (*c).is_digit(10)
+                            (*c).is_ascii_digit()
                         }
                     })
                     .count();
@@ -448,8 +440,7 @@ impl<'a> InvocationParser<'a> {
             // Handle whitspace, incase we have a pyscho
             if self.text[arglist_start..]
                 .chars()
-                .skip_while(|c| (*c).is_whitespace())
-                .nth(0)
+                .find(|c| !(*c).is_whitespace())
                 .unwrap()
                 == ')'
             {
