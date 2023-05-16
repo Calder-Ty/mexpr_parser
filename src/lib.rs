@@ -50,13 +50,13 @@ impl<'a> Identifier<'a> {
 
         if ident_offset == 0 {
             self.start = Some(start);
-            ident_text = &self.text;
+            ident_text = self.text;
         } else {
             self.start = Some(start + ident_offset);
             ident_text = &self.text[start + ident_offset..];
         }
         // Check if it is a Quoted Identifier
-        let is_quoted = if ident_text.starts_with("#") {
+        let is_quoted = if ident_text.starts_with('#') {
             // Can unwrap because we know we have initialized the value already ^^^
             self.start = Some(self.start.unwrap() + 2);
             true
@@ -79,7 +79,7 @@ impl<'a> Identifier<'a> {
                 .count()
         });
 
-        &self.text()
+        self.text()
     }
 
     pub fn end(&self) -> Option<usize> {
@@ -208,7 +208,7 @@ impl<'a> Literal<'a> {
             return Ok(val);
         };
 
-        return Err(Box::new(ParseError::InvalidInput));
+        Err(Box::new(ParseError::InvalidInput))
     }
 
     fn try_parse_logical(text: &str) -> ParseResult<Self> {
@@ -326,14 +326,14 @@ impl<'a> Literal<'a> {
         if text[num_start..].starts_with("0x") || text[num_start..].starts_with("0X") {
             let num_end = text[num_start + 2..] // Skip the 0x part
                 .chars()
-                .take_while(|c| c.is_digit(16))
+                .take_while(|c| c.is_ascii_hexdigit())
                 .count()
                 + (num_start + 2); //To account for the skipped indicies at the start
 
             // TODO: What if the next character is an invalid character for this to be a number-literal
             if num_end == num_start + 2 {
                 // Hex digit must have _a_ value
-                return Err(Box::new(ParseError::InvalidInput));
+                Err(Box::new(ParseError::InvalidInput))
             } else {
                 dbg!(&text[num_start + 2..num_end]);
                 return Ok((
@@ -356,13 +356,13 @@ impl<'a> Literal<'a> {
             //      + -
             let mut num_end = text[num_start..]
                 .chars()
-                .take_while(|c| c.is_digit(10))
+                .take_while(|c| c.is_ascii_digit())
                 .count()
                 + num_start;
             let has_integer_part = num_end > num_start;
 
             // Handle the fraction portion
-            if text[num_end..].starts_with(".") {
+            if text[num_end..].starts_with('.') {
                 num_end += text[num_end..]
                     .chars()
                     .skip(1)
@@ -487,7 +487,7 @@ mod tests {
     // #[rstest]
     fn test_invokation_parser() {
         let input_text = "This('Not a variable')";
-        let mut parser = InvocationParser::new(input_text, 0);
+        let parser = InvocationParser::new(input_text, 0);
         let (_, invokation) = parser
             .try_parse()
             .expect(format!("failed to parse test input '{}'", &input_text).as_str());
