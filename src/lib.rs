@@ -337,7 +337,7 @@ impl<'a> Literal<'a> {
 
         // Hex number
         if text[num_start..].starts_with("0x") || text[num_start..].starts_with("0X") {
-            let num_end = text[num_start + 2..]
+            let num_end = text[num_start + 2..] // Skip the 0x part
                 .chars()
                 .take_while(|c| HEX_DIGITS.contains(c))
                 .count()
@@ -631,6 +631,11 @@ mod tests {
         r#"   1234.25E-5 "#,
         Literal::NumberLiteral(NumberType::Float(1234.25E-5)),
         1234.25E-5
+    )]
+    #[case(
+        r#"1234.25EX5"#,
+        Literal::NumberLiteral(NumberType::Float(1234.25)),
+        1234.25
     )]
     #[case(
         r#"1234.25E-5"#,
