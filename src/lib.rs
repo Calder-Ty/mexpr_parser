@@ -1,3 +1,5 @@
+use std::num;
+
 use thiserror::Error;
 
 type ParseResult<T> = Result<(usize, T), Box<ParseError>>;
@@ -332,8 +334,9 @@ impl<'a> Literal<'a> {
     //      + -
     fn try_parse_number(text: &'a str) -> ParseResult<Self> {
         let num_start = skip_whitespace(text);
+
+        // Hex number
         if text[num_start..].starts_with("0x") || text[num_start..].starts_with("0X") {
-            // Hex number
             let num_end = text[num_start + 2..]
                 .chars()
                 .take_while(|c| HEX_DIGITS.contains(c))
@@ -354,7 +357,61 @@ impl<'a> Literal<'a> {
                 ));
             }
         } else {
-            unimplemented!()
+            // DecimalNumber
+            // decimal-number-literal:
+            //      decimal-digits . decimal-digits exponent-partopt
+            //      . decimal-digits exponent-partopt
+            //      decimal-digits exponent-partopt
+            // exponent-part:
+            //      e signopt decimal-digits
+            //      E signopt decimal-digits
+            // sign: one of
+            //      + -
+            let mut num_end = text[num_start..]
+                .chars()
+                .take_while(|c| c.is_digit(10))
+                .count()
+                + num_start;
+            let has_integer_part = num_end > num_start;
+
+            // Handle the fraction portion
+            if text[num_end..].starts_with(".") {
+                num_end += text[num_end..]
+                    .chars()
+                    .skip(1)
+                    .take_while(|c| c.is_digit(10))
+                    .count()
+                    + 1; // Plus 1 because we skipped the decimal point
+
+                if !has_integer_part && num_end <= num_start + 1 {
+                    // This is just a '.' we can't make a number from that
+                    return Err(Box::new(ParseError::InvalidInput));
+                }
+            }
+            // handle Optional Exponent
+            let mut exponent_iter = text[num_end..].char_indices();
+            let mut signed = false;
+            if [(0, 'E'), (0, 'e')].contains(&exponent_iter.next().unwrap_or((0, ' '))) {
+                let delta = exponent_iter.take_while(|(i, c)| {
+                    // -/+ are valid values for a number to take in the first position
+                    if (*c == '-' || *c == '+') && *i == 1_usize {
+                        signed = true;
+                        true
+                    } else {
+                        (*c).is_digit(10)
+                    }
+
+                }).count();
+
+                if delta > 0 {
+                    num_end += delta + 1; // To account for the E/e
+                }
+            }
+            // Return parsed value:
+            return Ok((
+                num_end,
+                Self::NumberLiteral(NumberType::Float(text[num_start..num_end].parse().unwrap())),
+            ));
         }
     }
 }
@@ -514,20 +571,20 @@ mod tests {
     }
 
     #[rstest]
-    // #[case(r#"0x1234"#, Literal::NumberLiteral(NumberType::Int(0x1234)), 0x1234)]
-    // #[case(r#"0X1234"#, Literal::NumberLiteral(NumberType::Int(0x1234)), 0x1234)]
-    // #[case(r#"0X1234,"#, Literal::NumberLiteral(NumberType::Int(0x1234)), 0x1234)]
-    // #[case(r#"0x1234,"#, Literal::NumberLiteral(NumberType::Int(0x1234)), 0x1234)]
-    // #[case(
-    //     r#"0X1234  ,"#,
-    //     Literal::NumberLiteral(NumberType::Int(0x1234)),
-    //     0x1234
-    // )]
-    // #[case(
-    //     r#"0x1234  ,"#,
-    //     Literal::NumberLiteral(NumberType::Int(0x1234)),
-    //     0x1234
-    // )]
+    #[case(r#"0x1234"#, Literal::NumberLiteral(NumberType::Int(0x1234)), 0x1234)]
+    #[case(r#"0X1234"#, Literal::NumberLiteral(NumberType::Int(0x1234)), 0x1234)]
+    #[case(r#"0X1234,"#, Literal::NumberLiteral(NumberType::Int(0x1234)), 0x1234)]
+    #[case(r#"0x1234,"#, Literal::NumberLiteral(NumberType::Int(0x1234)), 0x1234)]
+    #[case(
+        r#"0X1234  ,"#,
+        Literal::NumberLiteral(NumberType::Int(0x1234)),
+        0x1234
+    )]
+    #[case(
+        r#"0x1234  ,"#,
+        Literal::NumberLiteral(NumberType::Int(0x1234)),
+        0x1234
+    )]
     #[case(
         r#"   0X1234  ,"#,
         Literal::NumberLiteral(NumberType::Int(0x1234)),
@@ -547,6 +604,44 @@ mod tests {
         assert!(matches!(expected, out));
         match out {
             Literal::NumberLiteral(NumberType::Int(v)) => assert_eq!(v, value),
+            _ => assert!(false),
+        }
+    }
+
+    #[rstest]
+    #[case(r#"1234"#, Literal::NumberLiteral(NumberType::Float(1234.)), 1234.0)]
+    #[case(r#"1234 "#, Literal::NumberLiteral(NumberType::Float(1234.)), 1234.0)]
+    #[case(r#" 1234 "#, Literal::NumberLiteral(NumberType::Float(1234.)), 1234.0)]
+    #[case(
+        r#"1234.25"#,
+        Literal::NumberLiteral(NumberType::Float(1234.25)),
+        1234.25
+    )]
+    #[case(
+        r#"1234.25E5"#,
+        Literal::NumberLiteral(NumberType::Float(1234.25E5)),
+        1234.25E5
+    )]
+    #[case(
+        r#"1234.25e5"#,
+        Literal::NumberLiteral(NumberType::Float(1234.25E5)),
+        1234.25E5
+    )]
+    #[case(
+        r#"   1234.25E-5 "#,
+        Literal::NumberLiteral(NumberType::Float(1234.25E-5)),
+        1234.25E-5
+    )]
+    #[case(
+        r#"1234.25E-5"#,
+        Literal::NumberLiteral(NumberType::Float(1234.25E-5)),
+        1234.25E-5
+    )]
+    fn decimal_number_parser(#[case] input: &str, #[case] expected: Literal, #[case] value: f64) {
+        let (_, out) = Literal::try_parse_number(input).unwrap();
+        assert!(matches!(expected, out));
+        match out {
+            Literal::NumberLiteral(NumberType::Float(v)) => assert_eq!(v, value),
             _ => assert!(false),
         }
     }
