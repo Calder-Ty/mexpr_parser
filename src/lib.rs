@@ -4,11 +4,6 @@ use thiserror::Error;
 
 type ParseResult<T> = Result<(usize, T), Box<ParseError>>;
 
-const HEX_DIGITS: [char; 22] = [
-    '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'a', 'b', 'c',
-    'd', 'e', 'f',
-];
-
 #[derive(Debug, Error)]
 enum ParseError {
     #[error("Input is Invalid, Unable to proceed")]
@@ -339,7 +334,7 @@ impl<'a> Literal<'a> {
         if text[num_start..].starts_with("0x") || text[num_start..].starts_with("0X") {
             let num_end = text[num_start + 2..] // Skip the 0x part
                 .chars()
-                .take_while(|c| HEX_DIGITS.contains(c))
+                .take_while(|c| c.is_digit(16))
                 .count()
                 + (num_start + 2); //To account for the skipped indicies at the start
 
