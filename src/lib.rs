@@ -158,9 +158,9 @@ enum PrimaryExpression<'a> {
     /// argument-list:
     ///     expression
     ///     expression , argument-list
-    IdentifierExpression(Identifier<'a>),
-    InvokeExpression(Box<Invocation<'a>>),
-    LiteralExpression(Literal<'a>),
+    Identifier(Identifier<'a>),
+    Invoke(Box<Invocation<'a>>),
+    Literal(Literal<'a>),
 }
 
 impl<'a> PrimaryExpression<'a> {
@@ -177,11 +177,11 @@ impl<'a> PrimaryExpression<'a> {
 ///     NullLiteral
 ///     VerbatimLiteral
 enum Literal<'a> {
-    LogicalLiteral(bool),
-    TextLiteral(&'a str),
-    NumberLiteral(NumberType),
-    NullLiteral,
-    VerbatimLiteral,
+    Logical(bool),
+    Text(&'a str),
+    Number(NumberType),
+    Null,
+    Verbatim(&'a str),
 }
 
 enum NumberType {
@@ -215,10 +215,10 @@ impl<'a> Literal<'a> {
         // true?
         let text_start = skip_whitespace(text);
         if &text[text_start..text_start + 4] == "true" {
-            return Ok((text_start + 4, Self::LogicalLiteral(true)));
+            return Ok((text_start + 4, Self::Logical(true)));
         }
         if &text[text_start..text_start + 5] == "false" {
-            return Ok((text_start + 4, Self::LogicalLiteral(false)));
+            return Ok((text_start + 4, Self::Logical(false)));
         }
         Err(Box::new(ParseError::InvalidInput))
     }
@@ -226,7 +226,7 @@ impl<'a> Literal<'a> {
     fn try_parse_text(text: &'a str) -> ParseResult<Self> {
         // is there the initial `"`?
         let text_start = skip_whitespace(text);
-        if &text.chars().nth(text_start).unwrap_or(' ') == &'"' {
+        if text.chars().nth(text_start).unwrap_or(' ') == '"' {
             // Find the terminal `"`? Remember Escapes!
             let mut in_escape = false;
             let mut skip = false;
@@ -249,6 +249,7 @@ impl<'a> Literal<'a> {
                         // THE END OF THE TEXT
                         break;
                     }
+                    // lookahead to validate escape
                     if c == '#' && text.chars().nth(i + 1).unwrap_or(' ') == '(' {
                         in_escape = true;
                         skip = true;
@@ -266,7 +267,7 @@ impl<'a> Literal<'a> {
                 // Uh OH
                 return Err(Box::new(ParseError::InvalidInput));
             }
-            Ok((final_i, Self::TextLiteral(&text[text_start..=final_i])))
+            Ok((final_i, Self::Text(&text[text_start..=final_i])))
         } else {
             Err(Box::new(ParseError::InvalidInput))
         }
@@ -280,12 +281,12 @@ impl<'a> Literal<'a> {
                 // Still Plus 4 because we want the next thing to point to the end of the string,
                 // not "l" (i.e) the value we pass out should == len of the text
                 assert!(text.len() == text_start + 4);
-                Ok((text_start + 4, Literal::NullLiteral))
+                Ok((text_start + 4, Literal::Null))
             } else {
                 Err(Box::new(ParseError::InvalidInput))
             }
         } else if &text[text_start..=text_start + 4] == "null " {
-            Ok((text_start + 4, Literal::NullLiteral))
+            Ok((text_start + 4, Literal::Null))
         } else {
             Err(Box::new(ParseError::InvalidInput))
         }
@@ -338,7 +339,7 @@ impl<'a> Literal<'a> {
                 dbg!(&text[num_start + 2..num_end]);
                 return Ok((
                     num_end,
-                    Self::NumberLiteral(NumberType::Int(
+                    Self::Number(NumberType::Int(
                         isize::from_str_radix(&text[num_start + 2..num_end], 16).unwrap(),
                     )),
                 ));
@@ -398,8 +399,39 @@ impl<'a> Literal<'a> {
             // Return parsed value:
             return Ok((
                 num_end,
-                Self::NumberLiteral(NumberType::Float(text[num_start..num_end].parse().unwrap())),
+                Self::Number(NumberType::Float(text[num_start..num_end].parse().unwrap())),
             ));
+        }
+    }
+
+    fn try_parse_verbatim_literal(text: &'a str) -> ParseResult<Self> {
+        // Is there the initial `"`?
+        let text_start = skip_whitespace(text);
+        if text[text_start..].starts_with(r#"#!""#) {
+            // Find the terminal `"`? Remember Escapes!
+            let mut skip = false;
+            let mut final_i = text_start;
+            for (i, c) in text[text_start..].char_indices().skip(3) {
+                final_i = i;
+                // In Skip state, we are skipping the next character.
+                if skip {
+                    skip = false;
+                    continue;
+                }
+                //check for escape sequence
+                if c == '"' {
+                    if text[text_start + i..].chars().next().unwrap_or(' ') == '"' {
+                        // Not the end, just an escaped '"'
+                        skip = true;
+                        continue;
+                    }
+                    // THE END OF THE TEXT
+                    break;
+                }
+            }
+            Ok((final_i, Self::Verbatim(&text[text_start+3..=text_start+final_i]))) // ADD Three to skip the #!"
+        } else {
+            Err(Box::new(ParseError::InvalidInput))
         }
     }
 }
@@ -451,7 +483,7 @@ impl<'a> InvocationParser<'a> {
         Ok((
             arglist_start,
             Invocation {
-                invoker: PrimaryExpression::IdentifierExpression(invoker),
+                invoker: PrimaryExpression::Identifier(invoker),
                 args,
             },
         ))
@@ -492,14 +524,14 @@ mod tests {
             .try_parse()
             .expect(format!("failed to parse test input '{}'", &input_text).as_str());
 
-        if let PrimaryExpression::IdentifierExpression(invoker) = invokation.invoker {
+        if let PrimaryExpression::Identifier(invoker) = invokation.invoker {
             assert_eq!(invoker.text(), "This")
         }
     }
 
     #[rstest]
-    #[case("true, 'more stuff', yadda yadda", Literal::LogicalLiteral(true))]
-    #[case("false, 'more stuff', yadda yadda", Literal::LogicalLiteral(false))]
+    #[case("true, 'more stuff', yadda yadda", Literal::Logical(true))]
+    #[case("false, 'more stuff', yadda yadda", Literal::Logical(false))]
     fn test_logical_literal_parser(#[case] input: &str, #[case] expected: Literal) {
         let (_, out) = Literal::try_parse(input).unwrap();
         assert!(matches!(expected, out))
@@ -508,20 +540,20 @@ mod tests {
     #[rstest]
     #[case(
         r##""false, 'more stuff', yadda yadda""##,
-        Literal::TextLiteral(r#""false, 'more stuff', yadda yadda""#),
+        Literal::Text(r#""false, 'more stuff', yadda yadda""#),
         r#""false, 'more stuff', yadda yadda""#
     )]
     #[case(
         r#""""false""", More Stuff"#,
-        Literal::TextLiteral(r#""""false""""#),
+        Literal::Text(r#""""false""""#),
         r#""""false""""#
     )]
     #[case(
         r#""This is some#(tab) text", More Stuff"#,
-        Literal::TextLiteral(r#""This is some#(tab) text""#),
+        Literal::Text(r#""This is some#(tab) text""#),
         r#""This is some#(tab) text""#
     )]
-    #[case(r#" """""""" "#, Literal::TextLiteral(r#""""""""""#), r#""""""""""#)]
+    #[case(r#" """""""" "#, Literal::Text(r#""""""""""#), r#""""""""""#)]
     fn test_text_literal_parser(
         #[case] input: &str,
         #[case] expected: Literal,
@@ -530,7 +562,25 @@ mod tests {
         let (_, out) = Literal::try_parse_text(input).unwrap();
         assert!(matches!(expected, out));
         match out {
-            Literal::TextLiteral(text) => assert_eq!(value, text),
+            Literal::Text(text) => assert_eq!(value, text),
+            _ => unreachable!(),
+        }
+    }
+
+    #[rstest]
+    #[case(r#"   #!"This is verbaitm text"#, Literal::Verbatim("This is verbaitm text"), "This is verbaitm text")]
+    #[case(r#"#!"Thi""s is verbaitm text"#, Literal::Verbatim("This is verbaitm text"), r#"Thi""s is verbaitm text"#)]
+    #[case(r#"#!"This is verbaitm text"#, Literal::Verbatim("This is verbaitm text"), "This is verbaitm text")]
+    // #[case(r#" !#"""""""" "#, Literal::Text(r#""""""""""#), r#""""""""""#)]
+    fn test_verbatim_literal_parser(
+        #[case] input: &str,
+        #[case] expected: Literal,
+        #[case] value: &str,
+    ) {
+        let (_, out) = Literal::try_parse_verbatim_literal(input).unwrap();
+        assert!(matches!(expected, out));
+        match out {
+            Literal::Verbatim(text) => assert_eq!(value, text),
             _ => unreachable!(),
         }
     }
@@ -553,34 +603,18 @@ mod tests {
     #[case(r#"null"#)]
     fn null_literal_parser(#[case] input: &str) {
         let (_, out) = Literal::try_parse_null(input).unwrap();
-        assert!(matches!(Literal::NullLiteral, out));
+        assert!(matches!(Literal::Null, out));
     }
 
     #[rstest]
-    #[case(r#"0x1234"#, Literal::NumberLiteral(NumberType::Int(0x1234)), 0x1234)]
-    #[case(r#"0X1234"#, Literal::NumberLiteral(NumberType::Int(0x1234)), 0x1234)]
-    #[case(r#"0X1234,"#, Literal::NumberLiteral(NumberType::Int(0x1234)), 0x1234)]
-    #[case(r#"0x1234,"#, Literal::NumberLiteral(NumberType::Int(0x1234)), 0x1234)]
-    #[case(
-        r#"0X1234  ,"#,
-        Literal::NumberLiteral(NumberType::Int(0x1234)),
-        0x1234
-    )]
-    #[case(
-        r#"0x1234  ,"#,
-        Literal::NumberLiteral(NumberType::Int(0x1234)),
-        0x1234
-    )]
-    #[case(
-        r#"   0X1234  ,"#,
-        Literal::NumberLiteral(NumberType::Int(0x1234)),
-        0x1234
-    )]
-    #[case(
-        r#"   0x1234  ,"#,
-        Literal::NumberLiteral(NumberType::Int(0x1234)),
-        0x1234
-    )]
+    #[case(r#"0x1234"#, Literal::Number(NumberType::Int(0x1234)), 0x1234)]
+    #[case(r#"0X1234"#, Literal::Number(NumberType::Int(0x1234)), 0x1234)]
+    #[case(r#"0X1234,"#, Literal::Number(NumberType::Int(0x1234)), 0x1234)]
+    #[case(r#"0x1234,"#, Literal::Number(NumberType::Int(0x1234)), 0x1234)]
+    #[case(r#"0X1234  ,"#, Literal::Number(NumberType::Int(0x1234)), 0x1234)]
+    #[case(r#"0x1234  ,"#, Literal::Number(NumberType::Int(0x1234)), 0x1234)]
+    #[case(r#"   0X1234  ,"#, Literal::Number(NumberType::Int(0x1234)), 0x1234)]
+    #[case(r#"   0x1234  ,"#, Literal::Number(NumberType::Int(0x1234)), 0x1234)]
     fn hex_int_literal_parser(
         #[case] input: &str,
         #[case] expected: Literal,
@@ -589,7 +623,7 @@ mod tests {
         let (_, out) = Literal::try_parse_number(input).unwrap();
         assert!(matches!(expected, out));
         match out {
-            Literal::NumberLiteral(NumberType::Int(v)) => assert_eq!(v, value),
+            Literal::Number(NumberType::Int(v)) => assert_eq!(v, value),
             _ => assert!(false),
         }
     }
@@ -605,44 +639,36 @@ mod tests {
     }
 
     #[rstest]
-    #[case(r#"1234"#, Literal::NumberLiteral(NumberType::Float(1234.)), 1234.0)]
-    #[case(r#"1234 "#, Literal::NumberLiteral(NumberType::Float(1234.)), 1234.0)]
-    #[case(r#" 1234 "#, Literal::NumberLiteral(NumberType::Float(1234.)), 1234.0)]
-    #[case(
-        r#"1234.25"#,
-        Literal::NumberLiteral(NumberType::Float(1234.25)),
-        1234.25
-    )]
+    #[case(r#"1234"#, Literal::Number(NumberType::Float(1234.)), 1234.0)]
+    #[case(r#"1234 "#, Literal::Number(NumberType::Float(1234.)), 1234.0)]
+    #[case(r#" 1234 "#, Literal::Number(NumberType::Float(1234.)), 1234.0)]
+    #[case(r#"1234.25"#, Literal::Number(NumberType::Float(1234.25)), 1234.25)]
     #[case(
         r#"1234.25E5"#,
-        Literal::NumberLiteral(NumberType::Float(1234.25E5)),
+        Literal::Number(NumberType::Float(1234.25E5)),
         1234.25E5
     )]
     #[case(
         r#"1234.25e5"#,
-        Literal::NumberLiteral(NumberType::Float(1234.25E5)),
+        Literal::Number(NumberType::Float(1234.25E5)),
         1234.25E5
     )]
     #[case(
         r#"   1234.25E-5 "#,
-        Literal::NumberLiteral(NumberType::Float(1234.25E-5)),
+        Literal::Number(NumberType::Float(1234.25E-5)),
         1234.25E-5
     )]
-    #[case(
-        r#"1234.25EX5"#,
-        Literal::NumberLiteral(NumberType::Float(1234.25)),
-        1234.25
-    )]
+    #[case(r#"1234.25EX5"#, Literal::Number(NumberType::Float(1234.25)), 1234.25)]
     #[case(
         r#"1234.25E-5"#,
-        Literal::NumberLiteral(NumberType::Float(1234.25E-5)),
+        Literal::Number(NumberType::Float(1234.25E-5)),
         1234.25E-5
     )]
     fn decimal_number_parser(#[case] input: &str, #[case] expected: Literal, #[case] value: f64) {
         let (_, out) = Literal::try_parse_number(input).unwrap();
         assert!(matches!(expected, out));
         match out {
-            Literal::NumberLiteral(NumberType::Float(v)) => assert_eq!(v, value),
+            Literal::Number(NumberType::Float(v)) => assert_eq!(v, value),
             _ => assert!(false),
         }
     }
