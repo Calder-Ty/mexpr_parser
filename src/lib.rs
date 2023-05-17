@@ -3,7 +3,7 @@ use thiserror::Error;
 type ParseResult<T> = Result<(usize, T), Box<ParseError>>;
 
 #[derive(Debug, Error)]
-enum ParseError {
+pub enum ParseError {
     #[error("Input is Invalid, Unable to proceed")]
     InvalidInput,
 }
@@ -15,6 +15,7 @@ pub enum ParserState<'a> {
     VariableName(Identifier<'a>),
 }
 
+#[inline]
 fn is_identifier_part(c: &char) -> bool {
     // For now just '.', rather than finding a group for Mn, Mc or Pc
     // to represent continuation characters
@@ -30,65 +31,49 @@ fn skip_whitespace(text: &str) -> usize {
 
 pub struct Identifier<'a> {
     text: &'a str,
-    start: Option<usize>,
-    end: Option<usize>,
 }
 
 impl<'a> Identifier<'a> {
-    fn new(text: &'a str) -> Self {
-        Self {
-            text,
-            start: None,
-            end: None,
-        }
-    }
 
-    pub(crate) fn parse(&mut self, start: usize) -> &str {
-        let ident_offset = skip_whitespace(&self.text[start..]);
+    pub(crate) fn try_parse(text: &'a str) -> ParseResult<Self> {
+        let mut start = skip_whitespace(text);
 
-        let ident_text: &str;
-
-        if ident_offset == 0 {
-            self.start = Some(start);
-            ident_text = self.text;
-        } else {
-            self.start = Some(start + ident_offset);
-            ident_text = &self.text[start + ident_offset..];
-        }
+        let ident_text = &text[start..];
         // Check if it is a Quoted Identifier
         let is_quoted = if ident_text.starts_with('#') {
             // Can unwrap because we know we have initialized the value already ^^^
-            self.start = Some(self.start.unwrap() + 2);
+            start += 2;
             true
         } else {
             false
         };
 
-        let s = self.start.unwrap();
         // Get the identifier range
-        self.end = Some({
-            s + self.text[s..]
-                .char_indices()
-                .take_while(|(_, c)| {
-                    if is_quoted {
-                        *c != '"'
-                    } else {
-                        is_identifier_part(c)
-                    }
-                })
-                .count()
-        });
+        let end = {
+            start
+                + text[start..]
+                    .char_indices()
+                    .take_while(|(_, c)| {
+                        if is_quoted {
+                            *c != '"'
+                        } else {
+                            is_identifier_part(c)
+                        }
+                    })
+                    .count()
+        };
 
-        self.text()
-    }
-
-    pub fn end(&self) -> Option<usize> {
-        self.end
+        Ok((
+            end,
+            Self {
+                text: &text[start..end],
+            },
+        ))
     }
 
     pub fn text(&self) -> &str {
         // Eventually fix this with Valid States
-        &self.text[self.start.unwrap()..self.end.unwrap()]
+        &self.text
     }
 }
 
@@ -116,19 +101,18 @@ impl<'state> Default for Parser<'state> {
 /// variable-name:
 ///     identifier
 impl<'state> Parser<'state> {
-    pub fn parse(&mut self, text: &'state str) {
+    pub fn parse(&mut self, text: &'state str) -> ParseResult<()> {
         // This takes us past the let statement
         // Skip the Variable List state, because we know where we are.
-        self.parser_state = ParserState::VariableName(Identifier::new(text));
-        let mut subparser = Identifier::new(text);
+        let (i, ident) = Identifier::try_parse(text)?;
         // Skip let part of the statement
-        let ident = subparser.parse(3);
         // split on the = sign, now pass that in
-        let var_txt = text[subparser.end().unwrap() + 1..]
+        let var_txt = text[i..]
             .splitn(2, '=')
             .last()
             .unwrap();
         // let supbarser = MExpresion::parse(var_txt);
+        Ok((0, ()))
     }
 }
 
@@ -207,7 +191,6 @@ impl<'a> Literal<'a> {
         if let Ok(val) = Self::try_parse_text(text) {
             return Ok(val);
         };
-
 
         if let Ok(val) = Self::try_parse_number(text) {
             return Ok(val);
@@ -434,7 +417,10 @@ impl<'a> Literal<'a> {
                     break;
                 }
             }
-            Ok((final_i, Self::Verbatim(&text[text_start+3..=text_start+final_i]))) // ADD Three to skip the #!"
+            Ok((
+                final_i,
+                Self::Verbatim(&text[text_start + 3..=text_start + final_i]),
+            )) // ADD Three to skip the #!"
         } else {
             Err(Box::new(ParseError::InvalidInput))
         }
@@ -458,12 +444,11 @@ impl<'a> InvocationParser<'a> {
 
     pub fn try_parse(self) -> ParseResult<Invocation<'a>> {
         // To start, we need to identifiy the calling Expresion. Lets try:
-        let mut invoker = Identifier::new(self.text);
-        invoker.parse(self.start);
+        let (i, mut invoker) = Identifier::try_parse(self.text)?;
         // For and invocation we expect that we can be in a call so lets try something here:
         let mut args = vec![];
         // parsing the function calls
-        let arglist = &self.text[invoker.end.unwrap()..];
+        let arglist = &invoker.text();
         // Skip the Calling Parenthesis
         let mut arglist_start = arglist
             .char_indices()
@@ -515,10 +500,9 @@ mod tests {
     // The expectation is that the input is lexically valid
     #[case(r##"#"Malformed name"##, "Malformed name")]
     #[case("ThisIsTheEND", "ThisIsTheEND")]
-    fn test_parse_variable_name(#[case] input: &str, #[case] expected: &str) {
-        let mut parser = Identifier::new(input);
-        let out = parser.parse(0);
-        assert_eq!(expected, out)
+    fn test_parse_identifier(#[case] input: &str, #[case] expected: &str) {
+        let (_, mut out) = Identifier::try_parse(input).unwrap();
+        assert_eq!(expected, out.text())
     }
 
     // #[rstest]
@@ -573,9 +557,21 @@ mod tests {
     }
 
     #[rstest]
-    #[case(r#"   #!"This is verbaitm text"#, Literal::Verbatim("This is verbaitm text"), "This is verbaitm text")]
-    #[case(r#"#!"Thi""s is verbaitm text"#, Literal::Verbatim("This is verbaitm text"), r#"Thi""s is verbaitm text"#)]
-    #[case(r#"#!"This is verbaitm text"#, Literal::Verbatim("This is verbaitm text"), "This is verbaitm text")]
+    #[case(
+        r#"   #!"This is verbaitm text"#,
+        Literal::Verbatim("This is verbaitm text"),
+        "This is verbaitm text"
+    )]
+    #[case(
+        r#"#!"Thi""s is verbaitm text"#,
+        Literal::Verbatim("This is verbaitm text"),
+        r#"Thi""s is verbaitm text"#
+    )]
+    #[case(
+        r#"#!"This is verbaitm text"#,
+        Literal::Verbatim("This is verbaitm text"),
+        "This is verbaitm text"
+    )]
     // #[case(r#" !#"""""""" "#, Literal::Text(r#""""""""""#), r#""""""""""#)]
     fn test_verbatim_literal_parser(
         #[case] input: &str,
