@@ -200,9 +200,14 @@ impl<'a> Literal<'a> {
             return Ok(val);
         }
 
+        if let Ok(val) = Self::try_parse_verbatim_literal(text) {
+            return Ok(val);
+        };
+
         if let Ok(val) = Self::try_parse_text(text) {
             return Ok(val);
         };
+
 
         if let Ok(val) = Self::try_parse_number(text) {
             return Ok(val);
