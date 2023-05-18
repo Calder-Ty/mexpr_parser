@@ -29,6 +29,7 @@ fn skip_whitespace(text: &str) -> usize {
         .count()
 }
 
+#[derive(Debug)]
 pub struct Identifier<'a> {
     text: &'a str,
 }
@@ -36,39 +37,50 @@ pub struct Identifier<'a> {
 impl<'a> Identifier<'a> {
 
     pub(crate) fn try_parse(text: &'a str) -> ParseResult<Self> {
-        let mut start = skip_whitespace(text);
+        let mut start = skip_whitespace(&text);
 
         let ident_text = &text[start..];
         // Check if it is a Quoted Identifier
-        let is_quoted = if ident_text.starts_with('#') {
+        let is_quoted = if ident_text.starts_with(r#"#""#) {
             // Can unwrap because we know we have initialized the value already ^^^
-            start += 2;
+            start += 1;
             true
         } else {
             false
         };
 
-        // Get the identifier range
-        let end = {
-            start
-                + text[start..]
-                    .char_indices()
-                    .take_while(|(_, c)| {
-                        if is_quoted {
-                            *c != '"'
-                        } else {
-                            is_identifier_part(c)
-                        }
-                    })
-                    .count()
-        };
+        let mut end = start;
 
-        Ok((
-            end,
-            Self {
-                text: &text[start..end],
-            },
-        ))
+        if is_quoted {
+            let (delta, _) = Literal::try_parse_text(&text[start..])?;
+            end += delta;
+            Ok((
+                end,
+                Self {
+                    text: &text[start + 1..end],
+                },
+            ))
+        } else {
+            // Get the identifier range
+            end += {
+                text[start..]
+                    .char_indices()
+                    .take_while(|(_, c)| is_identifier_part(c))
+                    .count()
+            };
+
+            if end == start {
+                // Identifiers must have _SOME_ text
+                Err(Box::new(ParseError::InvalidInput))
+            } else {
+                Ok((
+                    end,
+                    Self {
+                        text: &text[start..end],
+                    },
+                ))
+            }
+        }
     }
 
     pub fn text(&self) -> &str {
@@ -160,6 +172,7 @@ impl<'a> PrimaryExpression<'a> {
 ///     TextLiteral
 ///     NullLiteral
 ///     VerbatimLiteral
+#[derive(Debug)]
 enum Literal<'a> {
     Logical(bool),
     Text(&'a str),
@@ -168,6 +181,7 @@ enum Literal<'a> {
     Verbatim(&'a str),
 }
 
+#[derive(Debug)]
 enum NumberType {
     Int(isize),
     Float(f64),
@@ -498,14 +512,25 @@ mod tests {
     #[case(r##"   #"This is some text" = Not a variable"##, "This is some text")]
     // Keeping this malformed name for now, just want to make sure the parser doesn't panic on it.
     // The expectation is that the input is lexically valid
-    #[case(r##"#"Malformed name"##, "Malformed name")]
-    #[case("ThisIsTheEND", "ThisIsTheEND")]
+    #[case(r##"#"Malformed name""##, "Malformed name")]
+    #[case("list, of, idents", "list")]
+    // #[case("ThisIsTheEND", "ThisIsTheEND")]
+    #[case("    nottext, 'more stuff', yadda yadda", "nottext")]
     fn test_parse_identifier(#[case] input: &str, #[case] expected: &str) {
         let (_, mut out) = Identifier::try_parse(input).unwrap();
         assert_eq!(expected, out.text())
     }
 
-    // #[rstest]
+    #[rstest]
+    #[case(r#""this is text""#)]
+    fn text_identifier_parser_errors(#[case] input: &str) {
+        let out = Identifier::try_parse(input);
+        println!("{:?}", &out);
+        match out {
+            Err(_) => assert!(true),
+            _ => assert!(false),
+        }
+    }
     fn test_invokation_parser() {
         let input_text = "This('Not a variable')";
         let parser = InvocationParser::new(input_text, 0);
