@@ -292,26 +292,31 @@ mod tests {
     #[case(
         r##""false, 'more stuff', yadda yadda""##,
         Literal::Text(r#""false, 'more stuff', yadda yadda""#),
-        r#""false, 'more stuff', yadda yadda""#
+        r#""false, 'more stuff', yadda yadda""#,
+        33
     )]
     #[case(
         r#""""false""", More Stuff"#,
         Literal::Text(r#""""false""""#),
-        r#""""false""""#
+        r#""""false""""#,
+        10
     )]
     #[case(
         r#""This is some#(tab) text", More Stuff"#,
         Literal::Text(r#""This is some#(tab) text""#),
-        r#""This is some#(tab) text""#
+        r#""This is some#(tab) text""#,
+        24
     )]
-    #[case(r#" """""""" "#, Literal::Text(r#""""""""""#), r#""""""""""#)]
+    #[case(r#" """""""" "#, Literal::Text(r#""""""""""#), r#""""""""""#, 8)]
     fn test_text_literal_parser(
         #[case] input: &str,
         #[case] expected: Literal,
         #[case] value: &str,
+        #[case] expected_delta: usize,
     ) {
-        let (_, out) = Literal::try_parse_text(input).unwrap();
+        let (delta, out) = Literal::try_parse_text(input).unwrap();
         assert!(matches!(expected, out));
+        assert_eq!(expected_delta, delta);
         match out {
             Literal::Text(text) => assert_eq!(value, text),
             _ => unreachable!(),

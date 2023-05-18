@@ -167,13 +167,13 @@ mod tests {
     use rstest::rstest;
 
     #[rstest]
-    fn test_invokation_parser() {
-        let input_text = r#"This("Not a variable")"#;
+    #[case(r#"This("Not a variable")"#, "this", vec!["Not a Variable"])]
+    fn test_invokation_parser(#[case] input_text: &str, #[case] ident: &str, #[case] vars: Vec<&str>) {
         let (_, invokation) = Invocation::try_parse(input_text)
             .expect(format!("failed to parse test input '{}'", &input_text).as_str());
 
         if let PrimaryExpression::Identifier(invoker) = invokation.invoker {
-            assert_eq!(invoker.text(), "This")
+            assert_eq!(invoker.text(), ident)
         }
     }
 }
