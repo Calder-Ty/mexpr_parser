@@ -116,15 +116,9 @@ impl<'a> PrimaryExpression<'a> {
 }
 
 
-struct Invocation<'a> {
+struct  Invocation<'a> {
     pub invoker: PrimaryExpression<'a>,
     pub args: Vec<PrimaryExpression<'a>>,
-}
-
-struct InvocationParser<'a> {
-    text: &'a str,
-    start: usize,
-    end: Option<usize>,
 }
 
 impl<'a> Invocation<'a> {
