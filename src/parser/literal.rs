@@ -266,8 +266,8 @@ impl<'a> Literal<'a> {
                 }
             }
             Ok((
-                final_i,
-                Self::Verbatim(&text[text_start + 3..=text_start + final_i]),
+                text_start + final_i,
+                Self::Verbatim(&text[text_start + 3..text_start + final_i]),
             )) // ADD Three to skip the #!"
         } else {
             Err(Box::new(ParseError::InvalidInput))
@@ -325,28 +325,33 @@ mod tests {
 
     #[rstest]
     #[case(
-        r#"   #!"This is verbaitm text"#,
+        r#"   #!"This is verbaitm text""#,
         Literal::Verbatim("This is verbaitm text"),
-        "This is verbaitm text"
+        "This is verbaitm text",
+        27
     )]
     #[case(
-        r#"#!"Thi""s is verbaitm text"#,
+        r#"#!"Thi""s is verbaitm text""#,
         Literal::Verbatim("This is verbaitm text"),
-        r#"Thi""s is verbaitm text"#
+        r#"Thi""s is verbaitm text"#,
+        26,
     )]
     #[case(
-        r#"#!"This is verbaitm text"#,
+        r#"#!"This is verbaitm text""#,
         Literal::Verbatim("This is verbaitm text"),
-        "This is verbaitm text"
+        "This is verbaitm text",
+        24
     )]
     // #[case(r#" !#"""""""" "#, Literal::Text(r#""""""""""#), r#""""""""""#)]
     fn test_verbatim_literal_parser(
         #[case] input: &str,
         #[case] expected: Literal,
         #[case] value: &str,
+        #[case] expected_delta: usize,
     ) {
-        let (_, out) = Literal::try_parse_verbatim_literal(input).unwrap();
+        let (delta, out) = Literal::try_parse_verbatim_literal(input).unwrap();
         assert!(matches!(expected, out));
+        assert_eq!(expected_delta, delta);
         match out {
             Literal::Verbatim(text) => assert_eq!(value, text),
             _ => unreachable!(),
