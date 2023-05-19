@@ -1,6 +1,8 @@
+use std::unreachable;
+
 use super::{
-    parse_utils::{self, ParseError, ParseResult},
     literal::Literal,
+    parse_utils::{self, ParseError, ParseResult},
 };
 
 #[inline]
@@ -16,9 +18,10 @@ pub(crate) struct Identifier<'a> {
 }
 
 impl<'a> Identifier<'a> {
-
     #[cfg(test)]
-    pub(crate) fn new(text: &'a str) -> Self { Self { text } }
+    pub(crate) fn new(text: &'a str) -> Self {
+        Self { text }
+    }
 
     pub(crate) fn try_parse(text: &'a str) -> ParseResult<Self> {
         let mut start = parse_utils::skip_whitespace(&text);
@@ -36,14 +39,12 @@ impl<'a> Identifier<'a> {
         let mut end = start;
 
         if is_quoted {
-            let (delta, _) = Literal::try_parse_text(&text[start..])?;
+            let (delta, name) = Literal::try_parse_text(&text[start..])?;
             end += delta;
-            Ok((
-                end,
-                Self {
-                    text: &text[start + 1..end],
-                },
-            ))
+            match name {
+                Literal::Text(txt) => Ok((end, Self { text: txt })),
+                _ => unreachable!("Only Literal::Text should be a valid return value from try_parse_text"),
+            }
         } else {
             // Get the identifier range
             end += {
@@ -71,7 +72,6 @@ impl<'a> Identifier<'a> {
         // Eventually fix this with Valid States
         &self.text
     }
-
 }
 
 #[cfg(test)]

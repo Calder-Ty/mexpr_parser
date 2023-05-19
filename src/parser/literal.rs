@@ -104,7 +104,7 @@ impl<'a> Literal<'a> {
                 // Uh OH
                 return Err(Box::new(ParseError::InvalidInput));
             }
-            Ok((final_i, Self::Text(&text[text_start..final_i])))
+            Ok((final_i + 1, Self::Text(&text[text_start..final_i])))
         } else {
             Err(Box::new(ParseError::InvalidInput))
         }
@@ -279,13 +279,17 @@ impl<'a> Literal<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rstest::rstest;
     use assert_matches::assert_matches;
+    use rstest::rstest;
 
     #[rstest]
     #[case("true, 'more stuff', yadda yadda", Literal::Logical(true), 4)]
     #[case("false, 'more stuff', yadda yadda", Literal::Logical(false), 5)]
-    fn test_logical_literal_parser(#[case] input: &str, #[case] expected: Literal, #[case] expected_delta: usize) {
+    fn test_logical_literal_parser(
+        #[case] input: &str,
+        #[case] expected: Literal,
+        #[case] expected_delta: usize,
+    ) {
         let (delta, out) = Literal::try_parse_logical(input).unwrap();
         assert_matches!(expected, out);
         assert_eq!(expected_delta, delta);
@@ -296,21 +300,21 @@ mod tests {
         r##""false, 'more stuff', yadda yadda""##,
         Literal::Text("false, 'more stuff', yadda yadda"),
         "false, 'more stuff', yadda yadda",
-        33
+        34
     )]
     #[case(
         r#""""false""", More Stuff"#,
         Literal::Text(r#"""false"""#),
         r#"""false"""#,
-        10
+        11
     )]
     #[case(
         r#""This is some#(tab) text", More Stuff"#,
         Literal::Text("This is some#(tab) text"),
         "This is some#(tab) text",
-        24
+        25
     )]
-    #[case(r#" """""""" "#, Literal::Text(r#""""""""#), r#""""""""#, 8)]
+    #[case(r#" """""""" "#, Literal::Text(r#""""""""#), r#""""""""#, 9)]
     fn test_text_literal_parser(
         #[case] input: &str,
         #[case] expected: Literal,
@@ -337,7 +341,7 @@ mod tests {
         r#"#!"Thi""s is verbaitm text""#,
         Literal::Verbatim("This is verbaitm text"),
         r#"Thi""s is verbaitm text"#,
-        26,
+        26
     )]
     #[case(
         r#"#!"This is verbaitm text""#,
