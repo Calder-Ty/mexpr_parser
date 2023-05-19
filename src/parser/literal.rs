@@ -54,7 +54,7 @@ impl<'a> Literal<'a> {
             return Ok((text_start + 4, Self::Logical(true)));
         }
         if &text[text_start..text_start + 5] == "false" {
-            return Ok((text_start + 4, Self::Logical(false)));
+            return Ok((text_start + 5, Self::Logical(false)));
         }
         Err(Box::new(ParseError::InvalidInput))
     }
@@ -280,35 +280,37 @@ impl<'a> Literal<'a> {
 mod tests {
     use super::*;
     use rstest::rstest;
+    use assert_matches::assert_matches;
 
     #[rstest]
-    #[case("true, 'more stuff', yadda yadda", Literal::Logical(true))]
-    #[case("false, 'more stuff', yadda yadda", Literal::Logical(false))]
-    fn test_logical_literal_parser(#[case] input: &str, #[case] expected: Literal) {
-        let (_, out) = Literal::try_parse(input).unwrap();
-        assert!(matches!(expected, out))
+    #[case("true, 'more stuff', yadda yadda", Literal::Logical(true), 4)]
+    #[case("false, 'more stuff', yadda yadda", Literal::Logical(false), 5)]
+    fn test_logical_literal_parser(#[case] input: &str, #[case] expected: Literal, #[case] expected_delta: usize) {
+        let (delta, out) = Literal::try_parse_logical(input).unwrap();
+        assert_matches!(expected, out);
+        assert_eq!(expected_delta, delta);
     }
 
     #[rstest]
-    // #[case(
-    //     r##""false, 'more stuff', yadda yadda""##,
-    //     Literal::Text(r#""false, 'more stuff', yadda yadda""#),
-    //     r#""false, 'more stuff', yadda yadda""#,
-    //     33
-    // )]
-    // #[case(
-    //     r#""""false""", More Stuff"#,
-    //     Literal::Text(r#""""false""""#),
-    //     r#""""false""""#,
-    //     10
-    // )]
+    #[case(
+        r##""false, 'more stuff', yadda yadda""##,
+        Literal::Text("false, 'more stuff', yadda yadda"),
+        "false, 'more stuff', yadda yadda",
+        33
+    )]
+    #[case(
+        r#""""false""", More Stuff"#,
+        Literal::Text(r#"""false"""#),
+        r#"""false"""#,
+        10
+    )]
     #[case(
         r#""This is some#(tab) text", More Stuff"#,
         Literal::Text("This is some#(tab) text"),
         "This is some#(tab) text",
         24
     )]
-    // #[case(r#" """""""" "#, Literal::Text(r#""""""""""#), r#""""""""""#, 8)]
+    #[case(r#" """""""" "#, Literal::Text(r#""""""""#), r#""""""""#, 8)]
     fn test_text_literal_parser(
         #[case] input: &str,
         #[case] expected: Literal,

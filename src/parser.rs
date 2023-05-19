@@ -88,6 +88,7 @@ struct Variable<'a> {
 //
 /// For now We are only implementing a parser for Identifier Expression and
 /// Invoke Expressions. This is the minimum we need for the task.
+#[derive(Debug)]
 enum PrimaryExpression<'a> {
     /// invoke-expression:
     ///     primary-expression <(> argument-listopt <)>
@@ -115,8 +116,8 @@ impl<'a> PrimaryExpression<'a> {
     }
 }
 
-
-struct  Invocation<'a> {
+#[derive(Debug)]
+struct Invocation<'a> {
     pub invoker: PrimaryExpression<'a>,
     pub args: Vec<PrimaryExpression<'a>>,
 }
@@ -165,11 +166,16 @@ impl<'a> Invocation<'a> {
 mod tests {
     use super::*;
     use rstest::rstest;
+    use assert_matches::assert_matches;
 
     #[rstest]
     #[case(r#"This("Not a variable", "More Text")"#, "This", vec!["Not a variable", "More Text"])]
     #[case(r#"This("Not a variable")"#, "This", vec!["Not a variable"])]
-    fn test_invokation_parser(#[case] input_text: &str, #[case] ident: &str, #[case] vars: Vec<&str>) {
+    fn test_invokation_parser(
+        #[case] input_text: &str,
+        #[case] ident: &str,
+        #[case] vars: Vec<&str>,
+    ) {
         let (_, invokation) = Invocation::try_parse(input_text)
             .expect(format!("failed to parse test input '{}'", &input_text).as_str());
 

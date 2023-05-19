@@ -16,6 +16,10 @@ pub(crate) struct Identifier<'a> {
 }
 
 impl<'a> Identifier<'a> {
+
+    #[cfg(test)]
+    pub(crate) fn new(text: &'a str) -> Self { Self { text } }
+
     pub(crate) fn try_parse(text: &'a str) -> ParseResult<Self> {
         let mut start = parse_utils::skip_whitespace(&text);
 
