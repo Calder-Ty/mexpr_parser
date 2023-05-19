@@ -139,14 +139,25 @@ impl<'a> Invocation<'a> {
         loop {
             let (delta, arg) = PrimaryExpression::try_parse(&arglist[arglist_start..])?;
             args.push(arg);
-            arglist_start =
-                arglist_start + delta + parse_utils::skip_whitespace(&arglist[arglist_start + delta..]);
+            arglist_start = arglist_start
+                + delta
+                + parse_utils::skip_whitespace(&arglist[arglist_start + delta..]);
             // If we come to the end of the text of the invocation, we want
             // to end
-            if arglist[arglist_start..].chars().skip(1).next().unwrap_or(')') == ')' {
+            if arglist[arglist_start..]
+                .chars()
+                .next()
+                .unwrap_or(')')
+                == ')'
+            {
                 break;
             }
-            if arglist[arglist_start..].chars().skip(1).next().unwrap_or(',') != ',' {
+            if arglist[arglist_start..]
+                .chars()
+                .next()
+                .unwrap_or(',')
+                != ','
+            {
                 panic!("This is unexpected");
             }
             arglist_start += 2;
@@ -186,9 +197,35 @@ mod tests {
         for (i, arg) in invokation.args.iter().enumerate() {
             match arg {
                 PrimaryExpression::Literal(Literal::Text(v)) => assert_eq!(v, &vars[i]),
-                _ => assert!(false)
+                _ => assert!(false),
             }
         }
+    }
 
+    #[rstest]
+    #[case(
+        r#"This("Not a variable", true, identifier)"#, 
+        "This", 
+        vec![
+            PrimaryExpression::Literal(Literal::Text("Not a variable")), 
+            PrimaryExpression::Literal(Literal::Logical(true)),
+            PrimaryExpression::Identifier(Identifier::new("identifier"),
+        )])
+]
+    fn test_invokation_parser_mixed(
+        #[case] input_text: &str,
+        #[case] ident: &str,
+        #[case] vars: Vec<PrimaryExpression>,
+    ) {
+        let (_, invokation) = Invocation::try_parse(input_text)
+            .expect(format!("failed to parse test input '{}'", &input_text).as_str());
+
+        if let PrimaryExpression::Identifier(invoker) = invokation.invoker {
+            assert_eq!(invoker.text(), ident)
+        }
+
+        for (i, arg) in invokation.args.iter().enumerate() {
+            assert_matches!(&vars[i], arg)
+        }
     }
 }
