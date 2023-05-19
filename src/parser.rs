@@ -139,16 +139,16 @@ impl<'a> Invocation<'a> {
             let (delta, arg) = PrimaryExpression::try_parse(&arglist[arglist_start..])?;
             args.push(arg);
             arglist_start =
-                arglist_start + parse_utils::skip_whitespace(&arglist[arglist_start + delta..]);
+                arglist_start + delta + parse_utils::skip_whitespace(&arglist[arglist_start + delta..]);
             // If we come to the end of the text of the invocation, we want
             // to end
-            if arglist[arglist_start..].chars().next().unwrap_or(')') == ')' {
+            if arglist[arglist_start..].chars().skip(1).next().unwrap_or(')') == ')' {
                 break;
             }
-            if arglist[arglist_start..].chars().next().unwrap_or(',') != ',' {
+            if arglist[arglist_start..].chars().skip(1).next().unwrap_or(',') != ',' {
                 panic!("This is unexpected");
             }
-            arglist_start += 1;
+            arglist_start += 2;
         }
 
         Ok((
@@ -167,7 +167,8 @@ mod tests {
     use rstest::rstest;
 
     #[rstest]
-    #[case(r#"This("Not a variable")"#, "this", vec!["Not a Variable"])]
+    #[case(r#"This("Not a variable", "More Text")"#, "This", vec!["Not a variable", "More Text"])]
+    #[case(r#"This("Not a variable")"#, "This", vec!["Not a variable"])]
     fn test_invokation_parser(#[case] input_text: &str, #[case] ident: &str, #[case] vars: Vec<&str>) {
         let (_, invokation) = Invocation::try_parse(input_text)
             .expect(format!("failed to parse test input '{}'", &input_text).as_str());
@@ -175,5 +176,13 @@ mod tests {
         if let PrimaryExpression::Identifier(invoker) = invokation.invoker {
             assert_eq!(invoker.text(), ident)
         }
+
+        for (i, arg) in invokation.args.iter().enumerate() {
+            match arg {
+                PrimaryExpression::Literal(Literal::Text(v)) => assert_eq!(v, &vars[i]),
+                _ => assert!(false)
+            }
+        }
+
     }
 }
