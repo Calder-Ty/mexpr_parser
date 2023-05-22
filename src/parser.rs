@@ -4,7 +4,7 @@ mod literal;
 use self::{
     identifier::Identifier,
     literal::Literal,
-    parse_utils::{ParseError, ParseResult},
+    parse_utils::{skip_whitespace, ParseError, ParseResult},
 };
 
 pub(crate) enum ParserState<'a> {
@@ -68,14 +68,61 @@ impl<'state> Parser<'state> {
     }
 }
 
-/// Used to parse A variable name.
-struct Variable<'a> {
-    identifier: &'a str,
-    value: PrimaryExpression<'a>,
+#[derive(Debug)]
+struct LetExpression<'a> {
+    variable_list: Vec<VariableAssignment<'a>>,
+}
+
+impl<'a> LetExpression<'a> {
+    fn try_parse(text: &'a str) -> parse_utils::ParseResult<Self> {
+        let mut parse_pointer = skip_whitespace(text);
+        if !&text[parse_pointer..].starts_with("let ") {
+            return Err(Box::new(ParseError::InvalidInput));
+        }
+        parse_pointer += 4; // skip 'let '
+
+        let mut variable_list = vec![];
+        loop {
+            let (delta, assignment) = VariableAssignment::try_parse(&text[parse_pointer..])?;
+            variable_list.push(assignment);
+            parse_pointer += delta;
+            parse_pointer += skip_whitespace(&text[parse_pointer..]);
+            if text[parse_pointer..].chars().next().unwrap_or(',') != ',' {
+                break;
+            }
+        }
+
+        Ok((parse_pointer, Self { variable_list }))
+    }
+}
+
+#[derive(Debug)]
+struct VariableAssignment<'a> {
+    name: Identifier<'a>,
+    expr: PrimaryExpression<'a>,
+}
+
+impl<'a> VariableAssignment<'a> {
+    fn try_parse(text: &'a str) -> parse_utils::ParseResult<Self> {
+        let mut parse_pointer = skip_whitespace(text);
+        let (delta, name) = Identifier::try_parse(&text[parse_pointer..])?;
+        parse_pointer += delta;
+        // Skip let part of the statement
+        // split on the = sign, now pass that in
+        let var_txt = text[parse_pointer..]
+            .splitn(2, '=')
+            .last()
+            .expect("No `=` Found for Splitting!");
+
+        let (delta, expr) = PrimaryExpression::try_parse(var_txt)?;
+        parse_pointer += delta;
+
+        Ok((parse_pointer, Self { name, expr }))
+    }
 }
 
 // primary-expression:
-//       literal-expression
+// x      literal-expression
 //       list-expression
 //       record-expression
 // x       identifier-expression
@@ -83,7 +130,7 @@ struct Variable<'a> {
 //       parenthesized-expression
 //       field-access-expression
 //       item-access-expression
-//       invoke-expression
+// x      invoke-expression
 //       not-implemented-expression
 //
 /// For now We are only implementing a parser for Identifier Expression and
@@ -123,6 +170,11 @@ struct Invocation<'a> {
 }
 
 impl<'a> Invocation<'a> {
+    #[cfg(test)]
+    fn new(invoker: PrimaryExpression<'a>, args: Vec<PrimaryExpression<'a>>) -> Self {
+        Self { invoker, args }
+    }
+
     pub fn try_parse(text: &'a str) -> ParseResult<Invocation<'a>> {
         // To start, we need to identifiy the calling Expresion. Lets try:
         let (i, mut invoker) = Identifier::try_parse(text)?;
@@ -165,9 +217,61 @@ impl<'a> Invocation<'a> {
 
 #[cfg(test)]
 mod tests {
+    use std::assert_eq;
+
     use super::*;
     use assert_matches::assert_matches;
     use rstest::rstest;
+
+    #[rstest]
+    #[case(
+        r#"let    var = "Not a variable
+        var2 = 0x25
+        ""#,
+        vec![
+            VariableAssignment {
+                name:Identifier::new("var"), 
+                expr:PrimaryExpression::Literal(Literal::Text("Not a variable"))
+            }
+        ]
+    )]
+    fn test_let_expression_parser(
+        #[case] input_text: &str,
+        #[case] expr: Vec<VariableAssignment>,
+    ) {
+        let (_, let_expr) = LetExpression::try_parse(input_text)
+            .expect(format!("failed to parse test input '{}'", &input_text).as_str());
+        for (i, _actual) in let_expr.variable_list.iter().enumerate() {
+            assert_matches!(&expr[i], _actual)
+        }
+    }
+
+    #[rstest]
+    #[case(
+        r#"    var = "Not a variable""#,
+        "var",
+        PrimaryExpression::Literal(Literal::Text("Not a variable"))
+    )]
+    #[case(
+        r#"    var = This("Not a variable")"#,
+        "var",
+        PrimaryExpression::Invoke(Box::new(Invocation::new(
+            PrimaryExpression::Identifier(Identifier::new("This")),
+            vec![PrimaryExpression::Literal(Literal::Text("Not a variable"))]
+        )))
+    )]
+    fn test_let_assignment_parser(
+        #[case] input_text: &str,
+        #[case] name: &str,
+        #[case] _expr: PrimaryExpression,
+    ) {
+        let (_, assignment) = VariableAssignment::try_parse(input_text)
+            .expect(format!("failed to parse test input '{}'", &input_text).as_str());
+
+        assert_eq!(assignment.name.text(), name);
+
+        assert_matches!(assignment.expr, _expr)
+    }
 
     #[rstest]
     #[case(r#"This("Not a variable", "More Text")"#, "This", vec!["Not a variable", "More Text"])]
