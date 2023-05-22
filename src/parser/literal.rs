@@ -158,26 +158,25 @@ impl<'a> Literal<'a> {
     // sign: one of
     //      + -
     fn try_parse_number(text: &'a str) -> ParseResult<Self> {
-        let num_start = parse_utils::skip_whitespace(text);
+        let mut parse_pointer = parse_utils::skip_whitespace(text);
 
         // Hex number
-        if text[num_start..].starts_with("0x") || text[num_start..].starts_with("0X") {
-            let num_end = text[num_start + 2..] // Skip the 0x part
+        if text[parse_pointer..].starts_with("0x") || text[parse_pointer..].starts_with("0X") {
+            let num_end = text[parse_pointer + 2..] // Skip the 0x part
                 .chars()
                 .take_while(|c| c.is_ascii_hexdigit())
                 .count()
-                + (num_start + 2); //To account for the skipped indicies at the start
+                + (parse_pointer + 2); //To account for the skipped indicies at the start
 
             // TODO: What if the next character is an invalid character for this to be a number-literal
-            if num_end == num_start + 2 {
+            if num_end == parse_pointer + 2 {
                 // Hex digit must have _a_ value
                 Err(Box::new(ParseError::InvalidInput))
             } else {
-                dbg!(&text[num_start + 2..num_end]);
                 return Ok((
                     num_end,
                     Self::Number(NumberType::Int(
-                        isize::from_str_radix(&text[num_start + 2..num_end], 16).unwrap(),
+                        isize::from_str_radix(&text[parse_pointer + 2..num_end], 16).unwrap(),
                     )),
                 ));
             }
@@ -192,12 +191,12 @@ impl<'a> Literal<'a> {
             //      E signopt decimal-digits
             // sign: one of
             //      + -
-            let mut num_end = text[num_start..]
+            let mut num_end = text[parse_pointer..]
                 .chars()
                 .take_while(|c| c.is_ascii_digit())
                 .count()
-                + num_start;
-            let has_integer_part = num_end > num_start;
+                + parse_pointer;
+            let has_integer_part = num_end > parse_pointer;
 
             // Handle the fraction portion
             if text[num_end..].starts_with('.') {
@@ -208,7 +207,7 @@ impl<'a> Literal<'a> {
                     .count()
                     + 1; // Plus 1 because we skipped the decimal point
 
-                if !has_integer_part && num_end <= num_start + 1 {
+                if !has_integer_part && num_end <= parse_pointer + 1 {
                     // This is just a '.' we can't make a number from that
                     return Err(Box::new(ParseError::InvalidInput));
                 }
@@ -234,12 +233,12 @@ impl<'a> Literal<'a> {
                 }
             }
             // Return parsed value:
-            if num_start == num_end {
+            if parse_pointer == num_end {
                 Err(Box::new(ParseError::InvalidInput))
             } else {
                 Ok((
                     num_end,
-                    Self::Number(NumberType::Float(text[num_start..num_end].parse().unwrap())),
+                    Self::Number(NumberType::Float(text[parse_pointer..num_end].parse().unwrap())),
                 ))
             }
         }
@@ -391,21 +390,23 @@ mod tests {
     }
 
     #[rstest]
-    #[case(r#"0x1234"#, Literal::Number(NumberType::Int(0x1234)), 0x1234)]
-    #[case(r#"0X1234"#, Literal::Number(NumberType::Int(0x1234)), 0x1234)]
-    #[case(r#"0X1234,"#, Literal::Number(NumberType::Int(0x1234)), 0x1234)]
-    #[case(r#"0x1234,"#, Literal::Number(NumberType::Int(0x1234)), 0x1234)]
-    #[case(r#"0X1234  ,"#, Literal::Number(NumberType::Int(0x1234)), 0x1234)]
-    #[case(r#"0x1234  ,"#, Literal::Number(NumberType::Int(0x1234)), 0x1234)]
-    #[case(r#"   0X1234  ,"#, Literal::Number(NumberType::Int(0x1234)), 0x1234)]
-    #[case(r#"   0x1234  ,"#, Literal::Number(NumberType::Int(0x1234)), 0x1234)]
+    #[case(r#"0x1234"#, Literal::Number(NumberType::Int(0x1234)), 0x1234, 6)]
+    #[case(r#"0X1234"#, Literal::Number(NumberType::Int(0x1234)), 0x1234, 6)]
+    #[case(r#"0X1234,"#, Literal::Number(NumberType::Int(0x1234)), 0x1234, 6)]
+    #[case(r#"0x1234,"#, Literal::Number(NumberType::Int(0x1234)), 0x1234, 6)]
+    #[case(r#"0X1234  ,"#, Literal::Number(NumberType::Int(0x1234)), 0x1234, 6)]
+    #[case(r#"0x1234  ,"#, Literal::Number(NumberType::Int(0x1234)), 0x1234, 6)]
+    #[case(r#"   0X1234  ,"#, Literal::Number(NumberType::Int(0x1234)), 0x1234, 9)]
+    #[case(r#"   0x1234  ,"#, Literal::Number(NumberType::Int(0x1234)), 0x1234, 9)]
     fn hex_int_literal_parser(
         #[case] input: &str,
         #[case] expected: Literal,
         #[case] value: isize,
+        #[case] exp_delta: usize,
     ) {
-        let (_, out) = Literal::try_parse_number(input).unwrap();
+        let (delta, out) = Literal::try_parse_number(input).unwrap();
         assert!(matches!(expected, out));
+        assert_eq!(exp_delta, delta);
         match out {
             Literal::Number(NumberType::Int(v)) => assert_eq!(v, value),
             _ => assert!(false),
