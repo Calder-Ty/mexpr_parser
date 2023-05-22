@@ -188,6 +188,9 @@ impl<'a> Invocation<'a> {
             .count()
             + 1; // Skip the opening '('
                  // Now we need to Parse the contents of the function invocation
+        if arglist_start == 1 {
+            return Err(Box::new(ParseError::InvalidInput))
+        }
         loop {
             let (delta, arg) = PrimaryExpression::try_parse(&arglist[arglist_start..])?;
             args.push(arg);
@@ -349,6 +352,15 @@ mod tests {
                     })
                 }
             }
+        }
+    }
+
+    #[rstest]
+    #[case("identifier")]
+    fn test_invocation_parser_fail(#[case] input_text: &str) {
+        match Invocation::try_parse(input_text) {
+            Err(_) => assert!(true),
+            Ok(_) => assert!(false)
         }
     }
 }
