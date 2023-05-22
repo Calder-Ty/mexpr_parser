@@ -177,39 +177,39 @@ impl<'a> Invocation<'a> {
 
     pub fn try_parse(text: &'a str) -> ParseResult<Invocation<'a>> {
         // To start, we need to identifiy the calling Expresion. Lets try:
-        let (i, mut invoker) = Identifier::try_parse(text)?;
-        // For and invocation we expect that we can be in a call so lets try something here:
+        let mut parser_pointer = 0;
+        let (delta, mut invoker) = Identifier::try_parse(text)?;
+
+        parser_pointer += delta;
         let mut args = vec![];
-        let arglist = &text[i..];
-        // Skip the Calling Parenthesis
-        let mut arglist_start = arglist
-            .char_indices()
-            .take_while(|(_, c)| *c != '(')
-            .count()
-            + 1; // Skip the opening '('
-                 // Now we need to Parse the contents of the function invocation
-        if arglist_start == 1 {
-            return Err(Box::new(ParseError::InvalidInput))
+        parser_pointer += skip_whitespace(&text[parser_pointer..]);
+        if ! &text[parser_pointer..].starts_with('(') {
+            // It is invalid for a invokation to not start with '('
+            return  Err(Box::new(ParseError::InvalidInput));
         }
+        else {
+            parser_pointer += 1; // Skip the opening '('
+        }
+         // Now we need to Parse the contents of the function invocation
         loop {
-            let (delta, arg) = PrimaryExpression::try_parse(&arglist[arglist_start..])?;
+            let (delta, arg) = PrimaryExpression::try_parse(&text[parser_pointer..])?;
             args.push(arg);
-            arglist_start = arglist_start
+            parser_pointer = parser_pointer
                 + delta
-                + parse_utils::skip_whitespace(&arglist[arglist_start + delta..]);
+                + parse_utils::skip_whitespace(&text[parser_pointer + delta..]);
             // If we come to the end of the text of the invocation, we want
             // to end
-            if arglist[arglist_start..].chars().next().unwrap_or(')') == ')' {
+            if text[parser_pointer..].chars().next().unwrap_or(')') == ')' {
                 break;
             }
-            if arglist[arglist_start..].chars().next().unwrap_or(',') != ',' {
+            if text[parser_pointer..].chars().next().unwrap_or(',') != ',' {
                 panic!("This is unexpected");
             }
-            arglist_start += 1; // Skip the comma
+            parser_pointer += 1; // Skip the comma
         }
 
         Ok((
-            arglist_start,
+            parser_pointer,
             Invocation {
                 invoker: PrimaryExpression::Identifier(invoker),
                 args,
