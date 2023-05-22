@@ -234,10 +234,14 @@ impl<'a> Literal<'a> {
                 }
             }
             // Return parsed value:
-            return Ok((
-                num_end,
-                Self::Number(NumberType::Float(text[num_start..num_end].parse().unwrap())),
-            ));
+            if num_start == num_end {
+                Err(Box::new(ParseError::InvalidInput))
+            } else {
+                Ok((
+                    num_end,
+                    Self::Number(NumberType::Float(text[num_start..num_end].parse().unwrap())),
+                ))
+            }
         }
     }
 

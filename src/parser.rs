@@ -103,14 +103,14 @@ enum PrimaryExpression<'a> {
 impl<'a> PrimaryExpression<'a> {
     // parses the stuff and returns an instance of itself
     fn try_parse(text: &'a str) -> Result<(usize, Self), ParseError> {
+        if let Ok((i, val)) = Literal::try_parse(text) {
+            return Ok((i, PrimaryExpression::Literal(val)));
+        }
         if let Ok((i, val)) = Identifier::try_parse(text) {
             return Ok((i, PrimaryExpression::Identifier(val)));
         }
         if let Ok((i, val)) = Invocation::try_parse(text) {
             return Ok((i, PrimaryExpression::Invoke(Box::new(val))));
-        }
-        if let Ok((i, val)) = Literal::try_parse(text) {
-            return Ok((i, PrimaryExpression::Literal(val)));
         }
         Err(ParseError::InvalidInput)
     }
@@ -144,20 +144,10 @@ impl<'a> Invocation<'a> {
                 + parse_utils::skip_whitespace(&arglist[arglist_start + delta..]);
             // If we come to the end of the text of the invocation, we want
             // to end
-            if arglist[arglist_start..]
-                .chars()
-                .next()
-                .unwrap_or(')')
-                == ')'
-            {
+            if arglist[arglist_start..].chars().next().unwrap_or(')') == ')' {
                 break;
             }
-            if arglist[arglist_start..]
-                .chars()
-                .next()
-                .unwrap_or(',')
-                != ','
-            {
+            if arglist[arglist_start..].chars().next().unwrap_or(',') != ',' {
                 panic!("This is unexpected");
             }
             arglist_start += 2;
@@ -176,8 +166,8 @@ impl<'a> Invocation<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rstest::rstest;
     use assert_matches::assert_matches;
+    use rstest::rstest;
 
     #[rstest]
     #[case(r#"This("Not a variable", "More Text")"#, "This", vec!["Not a variable", "More Text"])]
@@ -225,7 +215,19 @@ mod tests {
         }
 
         for (i, arg) in invokation.args.iter().enumerate() {
-            assert_matches!(&vars[i], arg)
+            match arg {
+                PrimaryExpression::Identifier(ident) => {
+                    assert_matches!(&vars[i], PrimaryExpression::Identifier(expected) => {
+                        assert_eq!(ident.text(), expected.text())
+                    })
+                },
+                PrimaryExpression::Invoke(invoke) => todo!(),
+                PrimaryExpression::Literal(literal) => {
+                    assert_matches!(&vars[i], PrimaryExpression::Literal(expected) => {
+                        assert_matches!(expected, literal)
+                    })
+                },
+            }
         }
     }
 }
