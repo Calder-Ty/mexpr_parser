@@ -150,7 +150,7 @@ impl<'a> Invocation<'a> {
             if arglist[arglist_start..].chars().next().unwrap_or(',') != ',' {
                 panic!("This is unexpected");
             }
-            arglist_start += 2;
+            arglist_start += 1; // Skip the comma
         }
 
         Ok((
@@ -197,11 +197,28 @@ mod tests {
         r#"This("Not a variable", true, identifier)"#, 
         "This", 
         vec![
-            PrimaryExpression::Literal(Literal::Text("Not a variable")), 
-            PrimaryExpression::Literal(Literal::Logical(true)),
-            PrimaryExpression::Identifier(Identifier::new("identifier"),
-        )])
-]
+             PrimaryExpression::Literal(Literal::Text("Not a variable")), 
+             PrimaryExpression::Literal(Literal::Logical(true)),
+             PrimaryExpression::Identifier(Identifier::new("identifier"),
+        )]) ]
+    #[case(
+        r#"This(" Not a 235.E10 variable"  ,false  , 1234.5 , 0x25)"#, 
+        "This", 
+        vec![
+            PrimaryExpression::Literal(Literal::Text(" Not a 235.E10 variable")), 
+            PrimaryExpression::Literal(Literal::Logical(false)),
+            PrimaryExpression::Literal(Literal::Number(literal::NumberType::Float(1234.5))),
+            PrimaryExpression::Literal(Literal::Number(literal::NumberType::Int(0x25))),
+        ]) ]
+    #[case(
+        r#"This(" Not a 235.E10 variable", false, 1234.5, 0x25)"#, 
+        "This", 
+        vec![
+            PrimaryExpression::Literal(Literal::Text(" Not a 235.E10 variable")), 
+            PrimaryExpression::Literal(Literal::Logical(false)),
+            PrimaryExpression::Literal(Literal::Number(literal::NumberType::Float(1234.5))),
+            PrimaryExpression::Literal(Literal::Number(literal::NumberType::Int(0x25))),
+        ])]
     fn test_invokation_parser_mixed(
         #[case] input_text: &str,
         #[case] ident: &str,
@@ -220,13 +237,13 @@ mod tests {
                     assert_matches!(&vars[i], PrimaryExpression::Identifier(expected) => {
                         assert_eq!(ident.text(), expected.text())
                     })
-                },
-                PrimaryExpression::Invoke(invoke) => todo!(),
-                PrimaryExpression::Literal(literal) => {
+                }
+                PrimaryExpression::Invoke(_invoke) => todo!(),
+                PrimaryExpression::Literal(_literal) => {
                     assert_matches!(&vars[i], PrimaryExpression::Literal(expected) => {
-                        assert_matches!(expected, literal)
+                        assert_matches!(expected, _literal)
                     })
-                },
+                }
             }
         }
     }
