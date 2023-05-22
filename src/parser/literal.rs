@@ -50,10 +50,10 @@ impl<'a> Literal<'a> {
     fn try_parse_logical(text: &str) -> ParseResult<Self> {
         // true?
         let text_start = parse_utils::skip_whitespace(text);
-        if &text[text_start..text_start + 4] == "true" {
+        if text[text_start..].starts_with("true") {
             return Ok((text_start + 4, Self::Logical(true)));
         }
-        if &text[text_start..text_start + 5] == "false" {
+        if text[text_start..].starts_with("false") {
             return Ok((text_start + 5, Self::Logical(false)));
         }
         Err(Box::new(ParseError::InvalidInput))
