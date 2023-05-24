@@ -13,8 +13,28 @@ pub(crate) mod parse_utils {
 
     #[derive(Debug, Error)]
     pub enum ParseError {
-        #[error("Input is Invalid, Unable to proceed")]
-        InvalidInput,
+        #[error("Input is Invalid, Unable to proceed at character {pointer} \n{ctx:?}")]
+        InvalidInput { pointer: usize, ctx: String },
+    }
+
+    pub(crate) fn gen_error_ctx(text: &str, pointer: usize, size: usize) -> String {
+        let start: usize;
+        let end: usize;
+        if pointer < size {
+            start = 0;
+        } else {
+            start = pointer - size
+        }
+
+        if pointer + size > text.len() {
+            end = text.len();
+        } else {
+            end = pointer + size
+        }
+
+        let ctx = &text[start..end];
+        let padding = "-".repeat(pointer - start);
+        format!("{ctx}\n{padding}^")
     }
 
     #[inline]
@@ -23,8 +43,48 @@ pub(crate) mod parse_utils {
             .take_while(|(_, c)| (*c).is_whitespace())
             .count()
     }
-}
 
+    #[cfg(test)]
+    mod tests {
+        use super::gen_error_ctx;
+        use rstest::rstest;
+
+        #[rstest]
+        #[case(
+            "this is some text that has errored",
+            10,
+            5,
+            r#"is some te
+-----^"#
+        )]
+        #[case(
+            "this is some text that has errored",
+            0,
+            5,
+            r#"this 
+^"#
+        )]
+        #[case(
+            "this is some text that has errored",
+            32,
+            5,
+            r#"errored
+-----^"#
+        )]
+        fn test_get_error_ctx(
+            #[case] input: &str,
+            #[case] pointer: usize,
+            #[case] size: usize,
+            #[case] exp_res: &str,
+        ) {
+            let res = gen_error_ctx(input, pointer, size);
+            assert_eq!(
+            exp_res,
+                res
+            )
+        }
+    }
+}
 
 /// let-expression:
 ///     <let> variable-list <in> expression
@@ -44,7 +104,10 @@ impl<'a> LetExpression<'a> {
     pub fn try_parse(text: &'a str) -> parse_utils::ParseResult<Self> {
         let mut parse_pointer = skip_whitespace(text);
         if !&text[parse_pointer..].starts_with("let ") {
-            return Err(Box::new(ParseError::InvalidInput));
+            return Err(Box::new(ParseError::InvalidInput {
+                pointer: parse_pointer,
+                ctx: parse_utils::gen_error_ctx(text, parse_pointer, 5),
+            }));
         }
         parse_pointer += 4; // skip 'let '
 
@@ -130,7 +193,10 @@ impl<'a> PrimaryExpression<'a> {
         if let Ok((i, val)) = Identifier::try_parse(text) {
             return Ok((i, PrimaryExpression::Identifier(val)));
         }
-        Err(ParseError::InvalidInput)
+        Err(ParseError::InvalidInput {
+            pointer: 0,
+            ctx: parse_utils::gen_error_ctx(text, 0, 5),
+        })
     }
 }
 
@@ -148,39 +214,42 @@ impl<'a> Invocation<'a> {
 
     pub fn try_parse(text: &'a str) -> ParseResult<Invocation<'a>> {
         // To start, we need to identifiy the calling Expresion. Lets try:
-        let mut parser_pointer = 0;
+        let mut parse_pointer = 0;
         let (delta, invoker) = Identifier::try_parse(text)?;
 
-        parser_pointer += delta;
+        parse_pointer += delta;
         let mut args = vec![];
-        parser_pointer += skip_whitespace(&text[parser_pointer..]);
-        if !&text[parser_pointer..].starts_with('(') {
+        parse_pointer += skip_whitespace(&text[parse_pointer..]);
+        if !&text[parse_pointer..].starts_with('(') {
             // It is invalid for a invokation to not start with '('
-            return Err(Box::new(ParseError::InvalidInput));
+            return Err(Box::new(ParseError::InvalidInput {
+                pointer: parse_pointer,
+                ctx: parse_utils::gen_error_ctx(text, parse_pointer, 5),
+            }));
         } else {
-            parser_pointer += 1; // Skip the opening '('
+            parse_pointer += 1; // Skip the opening '('
         }
         // Now we need to Parse the contents of the function invocation
         loop {
-            let (delta, arg) = PrimaryExpression::try_parse(&text[parser_pointer..])?;
+            let (delta, arg) = PrimaryExpression::try_parse(&text[parse_pointer..])?;
             args.push(arg);
-            parser_pointer = parser_pointer
+            parse_pointer = parse_pointer
                 + delta
-                + parse_utils::skip_whitespace(&text[parser_pointer + delta..]);
+                + parse_utils::skip_whitespace(&text[parse_pointer + delta..]);
             // If we come to the end of the text of the invocation, we want
             // to end
-            if text[parser_pointer..].chars().next().unwrap_or(')') == ')' {
-                parser_pointer += 1; // Add to account that we have moved one forward
+            if text[parse_pointer..].chars().next().unwrap_or(')') == ')' {
+                parse_pointer += 1; // Add to account that we have moved one forward
                 break;
             }
-            if text[parser_pointer..].chars().next().unwrap_or(',') != ',' {
+            if text[parse_pointer..].chars().next().unwrap_or(',') != ',' {
                 panic!("This is unexpected");
             }
-            parser_pointer += 1; // Skip the comma
+            parse_pointer += 1; // Skip the comma
         }
 
         Ok((
-            parser_pointer,
+            parse_pointer,
             Invocation {
                 invoker: PrimaryExpression::Identifier(invoker),
                 args,

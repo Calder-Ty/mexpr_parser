@@ -58,7 +58,7 @@ impl<'a> Identifier<'a> {
 
             if end == start {
                 // Identifiers must have _SOME_ text
-                Err(Box::new(ParseError::InvalidInput))
+                Err(Box::new(ParseError::InvalidInput{ pointer: start, ctx: parse_utils::gen_error_ctx(text, start, 5) }))
             } else {
                 Ok((
                     end,
