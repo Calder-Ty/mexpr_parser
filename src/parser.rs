@@ -7,14 +7,7 @@ use self::{
     parse_utils::{skip_whitespace, ParseError, ParseResult},
 };
 
-pub(crate) enum ParserState<'a> {
-    Let,
-    VariableList,
-    Variable,
-    VariableName(identifier::Identifier<'a>),
-}
-
-mod parse_utils {
+pub(crate) mod parse_utils {
     use thiserror::Error;
     pub type ParseResult<T> = Result<(usize, T), Box<ParseError>>;
 
@@ -32,19 +25,6 @@ mod parse_utils {
     }
 }
 
-pub struct Parser<'state> {
-    variables: Vec<&'state str>,
-    parser_state: ParserState<'state>,
-}
-
-impl<'state> Default for Parser<'state> {
-    fn default() -> Self {
-        Self {
-            variables: Vec::default(),
-            parser_state: ParserState::Let,
-        }
-    }
-}
 
 /// let-expression:
 ///     <let> variable-list <in> expression
@@ -55,26 +35,13 @@ impl<'state> Default for Parser<'state> {
 ///     variable-name <=> expression
 /// variable-name:
 ///     identifier
-impl<'state> Parser<'state> {
-    pub fn parse(&mut self, text: &'state str) -> ParseResult<()> {
-        // This takes us past the let statement
-        // Skip the Variable List state, because we know where we are.
-        let (i, ident) = Identifier::try_parse(text)?;
-        // Skip let part of the statement
-        // split on the = sign, now pass that in
-        let var_txt = text[i..].splitn(2, '=').last().unwrap();
-        // let supbarser = MExpresion::parse(var_txt);
-        Ok((0, ()))
-    }
-}
-
 #[derive(Debug)]
-struct LetExpression<'a> {
+pub struct LetExpression<'a> {
     variable_list: Vec<VariableAssignment<'a>>,
 }
 
 impl<'a> LetExpression<'a> {
-    fn try_parse(text: &'a str) -> parse_utils::ParseResult<Self> {
+    pub fn try_parse(text: &'a str) -> parse_utils::ParseResult<Self> {
         let mut parse_pointer = skip_whitespace(text);
         if !&text[parse_pointer..].starts_with("let ") {
             return Err(Box::new(ParseError::InvalidInput));
@@ -182,7 +149,7 @@ impl<'a> Invocation<'a> {
     pub fn try_parse(text: &'a str) -> ParseResult<Invocation<'a>> {
         // To start, we need to identifiy the calling Expresion. Lets try:
         let mut parser_pointer = 0;
-        let (delta, mut invoker) = Identifier::try_parse(text)?;
+        let (delta, invoker) = Identifier::try_parse(text)?;
 
         parser_pointer += delta;
         let mut args = vec![];

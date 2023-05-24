@@ -1,5 +1,5 @@
 //! Parse some of that sweet, sweet text
-use mexpr_parser::Parser;
+use mexpr_parser::{LetExpression, ParseError};
 
 const QUERY_DEF: &str = r##"let
     Source = Odbc.Query("dsn=Starburst", "SELECT#(lf)id,#(lf)dag_id,#(lf)state,#(lf)external_trigger,#(lf)start_date,#(lf)run_type#(lf)#(lf)FROM #(")airflow_postgres#(").public.dag_run"),
@@ -10,7 +10,8 @@ in
     #"Changed Type1"
 "##;
 
-fn main() {
-    let mut parser = Parser::default();
-    parser.parse(QUERY_DEF);
+fn main() -> Result<(), Box<ParseError>> {
+    let (_, res) = LetExpression::try_parse(QUERY_DEF)?;
+    dbg!(res);
+    Ok(())
 }
