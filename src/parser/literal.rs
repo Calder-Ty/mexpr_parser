@@ -175,10 +175,10 @@ impl<'a> Literal<'a> {
                 // Hex digit must have _a_ value
                 return Err(Box::new(ParseError::InvalidInput));
             }
-            parse_pointer += num_delta - 1; // minus 1 to account that "Count" is not zero indexed
+            parse_pointer += num_delta;
 
             // TODO: What if the next character is an invalid character for this to be a number-literal
-           return Ok((
+            return Ok((
                 parse_pointer, // count() is not zero indexed, so we have to
                 // shift pointer value back by one,
                 Self::Number(NumberType::Int(
@@ -197,11 +197,13 @@ impl<'a> Literal<'a> {
             //      E signopt decimal-digits
             // sign: one of
             //      + -
-            let mut num_end = text[parse_pointer..]
+            let num_delta = text[parse_pointer..]
                 .chars()
                 .take_while(|c| c.is_ascii_digit())
-                .count()
-                + parse_pointer;
+                .count();
+
+            let mut num_end = parse_pointer + num_delta;
+
             let has_integer_part = num_end > parse_pointer;
 
             // Handle the fraction portion
@@ -243,7 +245,8 @@ impl<'a> Literal<'a> {
                 Err(Box::new(ParseError::InvalidInput))
             } else {
                 Ok((
-                    num_end,
+                    num_end, // The Returned delta should be pointing at the final digit in the
+                    // number
                     Self::Number(NumberType::Float(
                         text[parse_pointer..num_end].parse().unwrap(),
                     )),
@@ -398,24 +401,14 @@ mod tests {
     }
 
     #[rstest]
-    #[case(r#"0x1234"#, Literal::Number(NumberType::Int(0x1234)), 0x1234, 5)]
-    #[case(r#"0X1234"#, Literal::Number(NumberType::Int(0x1234)), 0x1234, 5)]
-    #[case(r#"0X1234,"#, Literal::Number(NumberType::Int(0x1234)), 0x1234, 5)]
-    #[case(r#"0x1234,"#, Literal::Number(NumberType::Int(0x1234)), 0x1234, 5)]
-    #[case(r#"0X1234  ,"#, Literal::Number(NumberType::Int(0x1234)), 0x1234, 5)]
-    #[case(r#"0x1234  ,"#, Literal::Number(NumberType::Int(0x1234)), 0x1234, 5)]
-    #[case(
-        r#"   0X1234  ,"#,
-        Literal::Number(NumberType::Int(0x1234)),
-        0x1234,
-        8
-    )]
-    #[case(
-        r#"   0x1234  ,"#,
-        Literal::Number(NumberType::Int(0x1234)),
-        0x1234,
-        8
-    )]
+    #[case(r#"0x1234"#, Literal::Number(NumberType::Int(0x1234)), 0x1234, 6)]
+    #[case(r#"0X1234"#, Literal::Number(NumberType::Int(0x1234)), 0x1234, 6)]
+    #[case(r#"0X1234,"#, Literal::Number(NumberType::Int(0x1234)), 0x1234, 6)]
+    #[case(r#"0x1234,"#, Literal::Number(NumberType::Int(0x1234)), 0x1234, 6)]
+    #[case(r#"0X1234  ,"#, Literal::Number(NumberType::Int(0x1234)), 0x1234, 6)]
+    #[case(r#"0x1234  ,"#, Literal::Number(NumberType::Int(0x1234)), 0x1234, 6)]
+    #[case(r#"   0X1234  ,"#, Literal::Number(NumberType::Int(0x1234)), 0x1234, 9)]
+    #[case(r#"   0x1234  ,"#, Literal::Number(NumberType::Int(0x1234)), 0x1234, 9)]
     fn hex_int_literal_parser(
         #[case] input: &str,
         #[case] expected: Literal,
@@ -442,36 +435,61 @@ mod tests {
     }
 
     #[rstest]
-    #[case(r#"1234"#, Literal::Number(NumberType::Float(1234.)), 1234.0)]
-    #[case(r#"1234 "#, Literal::Number(NumberType::Float(1234.)), 1234.0)]
-    #[case(r#" 1234 "#, Literal::Number(NumberType::Float(1234.)), 1234.0)]
-    #[case(r#"1234.25"#, Literal::Number(NumberType::Float(1234.25)), 1234.25)]
+    #[case(r#"1234"#, Literal::Number(NumberType::Float(1234.)), 1234.0, 4)]
+    #[case(r#"1234 "#, Literal::Number(NumberType::Float(1234.)), 1234.0, 4)]
+    #[case(r#" 1234 "#, Literal::Number(NumberType::Float(1234.)), 1234.0, 5)]
+    #[case(r#"1234.25"#, Literal::Number(NumberType::Float(1234.25)), 1234.25, 7)]
     #[case(
         r#"1234.25E5"#,
         Literal::Number(NumberType::Float(1234.25E5)),
-        1234.25E5
+        1234.25E5,
+        9
     )]
     #[case(
         r#"1234.25e5"#,
         Literal::Number(NumberType::Float(1234.25E5)),
-        1234.25E5
+        1234.25E5,
+        9
     )]
     #[case(
         r#"   1234.25E-5 "#,
         Literal::Number(NumberType::Float(1234.25E-5)),
-        1234.25E-5
+        1234.25E-5,
+        13
     )]
-    #[case(r#"1234.25EX5"#, Literal::Number(NumberType::Float(1234.25)), 1234.25)]
+    #[case(
+        r#"1234.25EX5"#,
+        Literal::Number(NumberType::Float(1234.25)),
+        1234.25,
+        7
+    )]
     #[case(
         r#"1234.25E-5"#,
         Literal::Number(NumberType::Float(1234.25E-5)),
-        1234.25E-5
+        1234.25E-5,
+        10
     )]
-    fn decimal_number_parser(#[case] input: &str, #[case] expected: Literal, #[case] value: f64) {
-        let (_, out) = Literal::try_parse_number(input).unwrap();
-        assert!(matches!(expected, out));
-        match out {
+    fn decimal_number_parser(
+        #[case] input: &str,
+        #[case] expected: Literal,
+        #[case] value: f64,
+        #[case] exp_delta: usize,
+    ) {
+        let (delta, _out) = Literal::try_parse_number(input).unwrap();
+        assert!(matches!(expected, _out));
+        assert_eq!(exp_delta, delta);
+        match _out {
             Literal::Number(NumberType::Float(v)) => assert_eq!(v, value),
+            _ => assert!(false),
+        }
+    }
+
+    #[rstest]
+    #[case(".")]
+    fn text_decimal_parser_fails(#[case] input: &str) {
+        let out = Literal::try_parse_number(input);
+        match out {
+            Err(_) => assert!(true),
             _ => assert!(false),
         }
     }
