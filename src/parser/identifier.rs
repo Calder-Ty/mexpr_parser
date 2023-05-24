@@ -43,7 +43,9 @@ impl<'a> Identifier<'a> {
             end += delta;
             match name {
                 Literal::Text(txt) => Ok((end, Self { text: txt })),
-                _ => unreachable!("Only Literal::Text should be a valid return value from try_parse_text"),
+                _ => unreachable!(
+                    "Only Literal::Text should be a valid return value from try_parse_text"
+                ),
             }
         } else {
             // Get the identifier range
@@ -80,20 +82,29 @@ mod tests {
     use rstest::rstest;
 
     #[rstest]
-    #[case("This = Not a variable", "This")]
-    #[case("This=Not a variable", "This")]
-    #[case("   This = Not a variable", "This")]
-    #[case(r##"#"This is some text" = Not a variable"##, "This is some text")]
-    #[case(r##"   #"This is some text" = Not a variable"##, "This is some text")]
+    #[case("This = Not a variable", "This", 4)]
+    #[case("This=Not a variable", "This", 4)]
+    #[case("   This = Not a variable", "This", 7)]
+    #[case(r##"#"This is some text" = Not a variable"##, "This is some text", 20)]
+    #[case(
+        r##"   #"This is some text" = Not a variable"##,
+        "This is some text",
+        23
+    )]
     // Keeping this malformed name for now, just want to make sure the parser doesn't panic on it.
     // The expectation is that the input is lexically valid
-    #[case(r##"#"Malformed name""##, "Malformed name")]
-    #[case("list, of, idents", "list")]
-    // #[case("ThisIsTheEND", "ThisIsTheEND")]
-    #[case("    nottext, 'more stuff', yadda yadda", "nottext")]
-    fn test_parse_identifier(#[case] input: &str, #[case] expected: &str) {
-        let (_, mut out) = Identifier::try_parse(input).unwrap();
-        assert_eq!(expected, out.text())
+    #[case(r##"#"Malformed name""##, "Malformed name", 17)]
+    #[case("list, of, idents", "list", 4)]
+    #[case("ThisIsTheEND", "ThisIsTheEND", 12)]
+    #[case("    nottext, 'more stuff', yadda yadda", "nottext", 11)]
+    fn test_parse_identifier(
+        #[case] input: &str,
+        #[case] expected: &str,
+        #[case] exp_delta: usize,
+    ) {
+        let (delta, out) = Identifier::try_parse(input).unwrap();
+        assert_eq!(expected, out.text());
+        assert_eq!(exp_delta, delta);
     }
 
     #[rstest]
