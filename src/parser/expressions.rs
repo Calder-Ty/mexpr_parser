@@ -4,8 +4,7 @@ use primary_expressions::PrimaryExpression;
 
 use super::{
     identifier::Identifier,
-    literal::Literal,
-    parse_utils::{self, gen_error_ctx, skip_whitespace, ParseResult},
+    parse_utils::{self, skip_whitespace},
 };
 
 /// let-expression:
@@ -86,10 +85,9 @@ impl<'a> VariableAssignment<'a> {
 
 #[cfg(test)]
 mod tests {
-    use std::{assert_eq, todo};
 
     use super::*;
-    use crate::parser::{identifier::Identifier, literal::NumberType};
+    use crate::parser::{identifier::Identifier, literal::{Literal, NumberType}};
     use assert_matches::assert_matches;
     use rstest::rstest;
 
