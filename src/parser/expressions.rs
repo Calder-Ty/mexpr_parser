@@ -1,4 +1,6 @@
 mod primary_expressions;
+use std::dbg;
+
 use crate::ParseError;
 use primary_expressions::PrimaryExpression;
 
@@ -156,7 +158,7 @@ impl<'a> TypeExpression<'a> {
         // for now only supporting the 'primitive type' expression
         let delta_type = &text[parse_pointer..]
             .chars()
-            .take_while(|c| !(*c).is_whitespace())
+            .take_while(|c| (*c).is_ascii_alphabetic())
             .count();
         if PRIMITIVE_TYPES.contains(&&text[parse_pointer..parse_pointer + delta_type]) {
             parse_pointer += delta_type;

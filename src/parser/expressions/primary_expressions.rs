@@ -1,4 +1,11 @@
-use crate::{parser::{identifier::Identifier, literal::Literal, parse_utils::{self, ParseResult, skip_whitespace}}, ParseError};
+use crate::{
+    parser::{
+        identifier::Identifier,
+        literal::Literal,
+        parse_utils::{self, gen_error_ctx, skip_whitespace, ParseResult},
+    },
+    ParseError,
+};
 
 use super::Expression;
 
@@ -78,7 +85,10 @@ impl<'a> ListExpression<'a> {
                 break;
             }
             if text[parse_pointer..].chars().next().unwrap_or(',') != ',' {
-                panic!("This is unexpected");
+                panic!(
+                    "This is unexpected:\n{0}",
+                    gen_error_ctx(text, parse_pointer, 10)
+                );
             }
             parse_pointer += 1; // Skip the comma
         }
@@ -130,7 +140,10 @@ impl<'a> Invocation<'a> {
                 break;
             }
             if text[parse_pointer..].chars().next().unwrap_or(',') != ',' {
-                panic!("This is unexpected");
+                panic!(
+                    "This is unexpected:\n{0}",
+                    gen_error_ctx(text, parse_pointer, 10)
+                )
             }
             parse_pointer += 1; // Skip the comma
         }
@@ -150,10 +163,13 @@ mod tests {
     use std::{assert_eq, todo};
 
     use super::*;
-    use crate::parser::{identifier::Identifier, literal::{Literal, NumberType}, expressions::TypeExpression};
+    use crate::parser::{
+        expressions::TypeExpression,
+        identifier::Identifier,
+        literal::{Literal, NumberType},
+    };
     use assert_matches::assert_matches;
     use rstest::rstest;
-
 
     #[rstest]
     #[case(r#"This("Not a variable", "More Text")"#, "This", vec!["Not a variable", "More Text"])]
@@ -263,7 +279,6 @@ mod tests {
     ],
 48)
 ]
-
     #[case(
     r#"{" Not a 235.E10 variable", false, 1234.5, type datetime }"#, 
     vec![
