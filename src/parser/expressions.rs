@@ -28,6 +28,30 @@ const PRIMITIVE_TYPES: [&str; 18] = [
     "type",
 ];
 
+#[derive(Debug)]
+pub (crate) enum Expression<'a> {
+    Let(LetExpression<'a>),
+    Primary(PrimaryExpression<'a>),
+    Type(TypeExpression<'a>),
+}
+
+impl<'a> Expression<'a> {
+
+    fn try_parse(text: &'a str) -> ParseResult<Self> {
+        if let Ok((i, val)) = TypeExpression::try_parse(text) {
+            return Ok((i, Expression::Type(val)));
+        }
+        if let Ok((i, val)) = LetExpression::try_parse(text) {
+            return Ok((i, Expression::Let(val)));
+        }
+        if let Ok((i, val)) = PrimaryExpression::try_parse(text) {
+            return Ok((i, Expression::Primary(val)));
+        }
+        Err(Box::new(ParseError::InvalidInput { pointer: 0, ctx: gen_error_ctx(text, 0, 5) }))
+    }
+}
+
+
 /// let-expression:
 ///     <let> variable-list <in> expression
 /// variable-list:
@@ -103,6 +127,7 @@ impl<'a> VariableAssignment<'a> {
     }
 }
 
+#[derive(Debug)]
 pub(crate) struct TypeExpression<'a> {
     text: &'a str,
 }
