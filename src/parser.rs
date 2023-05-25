@@ -1,10 +1,12 @@
 mod identifier;
 mod literal;
 
+use std::vec;
+
 use self::{
     identifier::Identifier,
     literal::Literal,
-    parse_utils::{skip_whitespace, ParseError, ParseResult},
+    parse_utils::{gen_error_ctx, skip_whitespace, ParseError, ParseResult},
 };
 
 pub(crate) mod parse_utils {
@@ -13,7 +15,7 @@ pub(crate) mod parse_utils {
 
     #[derive(Debug, Error)]
     pub enum ParseError {
-        #[error("Input is Invalid, Unable to proceed at character {pointer} \n{ctx:?}")]
+        #[error("Input is Invalid, Unable to proceed at character {pointer} \n{ctx}")]
         InvalidInput { pointer: usize, ctx: String },
     }
 
@@ -33,8 +35,8 @@ pub(crate) mod parse_utils {
         }
 
         let ctx = &text[start..end];
-        let padding = "-".repeat(pointer - start);
-        format!("{ctx}\n{padding}^")
+        let padding = "-".repeat(pointer - start + 1); // +1 accounts for the quotes added in
+        format!("{ctx:?}\n{padding}^")
     }
 
     #[inline]
@@ -54,22 +56,22 @@ pub(crate) mod parse_utils {
             "this is some text that has errored",
             10,
             5,
-            r#"is some te
------^"#
+            r#""is some te"
+------^"#
         )]
         #[case(
             "this is some text that has errored",
             0,
             5,
-            r#"this 
-^"#
+            r#""this "
+-^"#
         )]
         #[case(
             "this is some text that has errored",
             32,
             5,
-            r#"errored
------^"#
+            r#""errored"
+------^"#
         )]
         fn test_get_error_ctx(
             #[case] input: &str,
@@ -78,10 +80,7 @@ pub(crate) mod parse_utils {
             #[case] exp_res: &str,
         ) {
             let res = gen_error_ctx(input, pointer, size);
-            assert_eq!(
-            exp_res,
-                res
-            )
+            assert_eq!(exp_res, res)
         }
     }
 }
@@ -103,7 +102,13 @@ pub struct LetExpression<'a> {
 impl<'a> LetExpression<'a> {
     pub fn try_parse(text: &'a str) -> parse_utils::ParseResult<Self> {
         let mut parse_pointer = skip_whitespace(text);
-        if !&text[parse_pointer..].starts_with("let ") {
+        let let_sep = &text[parse_pointer..]
+            .chars()
+            .skip(3)
+            .next()
+            .unwrap_or('_')
+            .is_whitespace();
+        if !(text[parse_pointer..].starts_with("let") && *let_sep) {
             return Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
                 ctx: parse_utils::gen_error_ctx(text, parse_pointer, 5),
@@ -176,6 +181,7 @@ enum PrimaryExpression<'a> {
     /// argument-list:
     ///     expression
     ///     expression , argument-list
+    List(ListExpression<'a>),
     Identifier(Identifier<'a>),
     Invoke(Box<Invocation<'a>>),
     Literal(Literal<'a>),
@@ -190,6 +196,9 @@ impl<'a> PrimaryExpression<'a> {
         if let Ok((i, val)) = Invocation::try_parse(text) {
             return Ok((i, PrimaryExpression::Invoke(Box::new(val))));
         }
+        if let Ok((i, val)) = ListExpression::try_parse(text) {
+            return Ok((i, PrimaryExpression::List(val)));
+        }
         if let Ok((i, val)) = Identifier::try_parse(text) {
             return Ok((i, PrimaryExpression::Identifier(val)));
         }
@@ -197,6 +206,42 @@ impl<'a> PrimaryExpression<'a> {
             pointer: 0,
             ctx: parse_utils::gen_error_ctx(text, 0, 5),
         })
+    }
+}
+
+#[derive(Debug)]
+struct ListExpression<'a> {
+    elements: Vec<PrimaryExpression<'a>>,
+}
+
+impl<'a> ListExpression<'a> {
+    pub fn try_parse(text: &'a str) -> ParseResult<Self> {
+        let mut parse_pointer = skip_whitespace(text);
+
+        if text[parse_pointer..].chars().next().unwrap_or(' ') != '{' {
+            return Err(Box::new(ParseError::InvalidInput {
+                pointer: parse_pointer,
+                ctx: gen_error_ctx(text, parse_pointer, 5),
+            }));
+        }
+        parse_pointer += 1;
+        let mut elements = vec![];
+        loop {
+            let (delta, el) = PrimaryExpression::try_parse(&text[parse_pointer..])?;
+            parse_pointer += delta + skip_whitespace(&text[parse_pointer + delta..]);
+            elements.push(el);
+
+            if text[parse_pointer..].chars().next().unwrap_or('}') == '}' {
+                parse_pointer += 1; // Add to account that we have moved one forward
+                break;
+            }
+            if text[parse_pointer..].chars().next().unwrap_or(',') != ',' {
+                panic!("This is unexpected");
+            }
+            parse_pointer += 1; // Skip the comma
+        }
+
+        Ok((parse_pointer, Self { elements }))
     }
 }
 
@@ -260,7 +305,7 @@ impl<'a> Invocation<'a> {
 
 #[cfg(test)]
 mod tests {
-    use std::assert_eq;
+    use std::{assert_eq, todo};
 
     use super::*;
     use assert_matches::assert_matches;
@@ -321,6 +366,15 @@ var = "Not a variable""#,
             vec![PrimaryExpression::Literal(Literal::Text("Not a variable"))]
         ))),
         44
+    )]
+    #[case(
+        r#"       #"var" =          This.that("Not a variable")"#,
+        "var",
+        PrimaryExpression::Invoke(Box::new(Invocation::new(
+            PrimaryExpression::Identifier(Identifier::new("This.that")),
+            vec![PrimaryExpression::Literal(Literal::Text("Not a variable"))]
+        ))),
+        52
     )]
     fn test_let_assignment_parser(
         #[case] input_text: &str,
@@ -409,6 +463,7 @@ var = "Not a variable""#,
 
         for (i, arg) in invokation.args.iter().enumerate() {
             match arg {
+                PrimaryExpression::List(_) => todo!(),
                 PrimaryExpression::Identifier(ident) => {
                     assert_matches!(&vars[i], PrimaryExpression::Identifier(expected) => {
                         assert_eq!(ident.text(), expected.text())
@@ -430,6 +485,46 @@ var = "Not a variable""#,
         match Invocation::try_parse(input_text) {
             Err(_) => assert!(true),
             Ok(_) => assert!(false),
+        }
+    }
+
+
+    #[rstest]
+    #[case(
+        r#"{" Not a 235.E10 variable", false, 1234.5, 0x25}"#, 
+        vec![
+            PrimaryExpression::Literal(Literal::Text(" Not a 235.E10 variable")), 
+            PrimaryExpression::Literal(Literal::Logical(false)),
+            PrimaryExpression::Literal(Literal::Number(literal::NumberType::Float(1234.5))),
+            PrimaryExpression::Literal(Literal::Number(literal::NumberType::Int(0x25))),
+        ],
+    48)
+]
+    fn test_list_expression_parser(
+        #[case] input_text: &str,
+        #[case] exp_elements: Vec<PrimaryExpression>,
+        #[case] exp_delta: usize,
+    ) {
+        let (delta, list) = ListExpression::try_parse(input_text)
+            .expect(format!("failed to parse test input '{}'", &input_text).as_str());
+
+        assert_eq!(exp_delta, delta);
+
+        for (i, arg) in list.elements.iter().enumerate() {
+            match arg {
+                PrimaryExpression::List(_) => todo!(),
+                PrimaryExpression::Identifier(ident) => {
+                    assert_matches!(&exp_elements[i], PrimaryExpression::Identifier(expected) => {
+                        assert_eq!(ident.text(), expected.text())
+                    })
+                }
+                PrimaryExpression::Invoke(_invoke) => todo!(),
+                PrimaryExpression::Literal(_literal) => {
+                    assert_matches!(&exp_elements[i], PrimaryExpression::Literal(expected) => {
+                        assert_matches!(expected, _literal)
+                    })
+                }
+            }
         }
     }
 }
