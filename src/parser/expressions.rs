@@ -1,13 +1,11 @@
 mod primary_expressions;
-use std::dbg;
-
-use crate::ParseError;
-use primary_expressions::PrimaryExpression;
 
 use super::{
     identifier::Identifier,
     parse_utils::{self, gen_error_ctx, skip_whitespace, ParseResult},
 };
+use crate::ParseError;
+use primary_expressions::PrimaryExpression;
 
 const PRIMITIVE_TYPES: [&str; 18] = [
     "any",
@@ -31,14 +29,13 @@ const PRIMITIVE_TYPES: [&str; 18] = [
 ];
 
 #[derive(Debug)]
-pub (crate) enum Expression<'a> {
+pub(crate) enum Expression<'a> {
     Let(LetExpression<'a>),
     Primary(PrimaryExpression<'a>),
     Type(TypeExpression<'a>),
 }
 
 impl<'a> Expression<'a> {
-
     fn try_parse(text: &'a str) -> ParseResult<Self> {
         if let Ok((i, val)) = TypeExpression::try_parse(text) {
             return Ok((i, Expression::Type(val)));
@@ -49,10 +46,12 @@ impl<'a> Expression<'a> {
         if let Ok((i, val)) = PrimaryExpression::try_parse(text) {
             return Ok((i, Expression::Primary(val)));
         }
-        Err(Box::new(ParseError::InvalidInput { pointer: 0, ctx: gen_error_ctx(text, 0, 5) }))
+        Err(Box::new(ParseError::InvalidInput {
+            pointer: 0,
+            ctx: gen_error_ctx(text, 0, 5),
+        }))
     }
 }
-
 
 /// let-expression:
 ///     <let> variable-list <in> expression
@@ -277,10 +276,9 @@ var = "Not a variable""#,
         #[case] name: &str,
         #[case] exp_delta: usize,
     ) {
-
-        let (delta, res) = TypeExpression::try_parse(input_text).expect(format!("Couldn't parse input, {0}", input_text).as_str());
+        let (delta, res) = TypeExpression::try_parse(input_text)
+            .expect(format!("Couldn't parse input, {0}", input_text).as_str());
         assert_eq!(name, res.text);
         assert_eq!(exp_delta, delta);
-
     }
 }
