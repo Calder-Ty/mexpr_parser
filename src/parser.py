@@ -1,3 +1,4 @@
+#!/bin/env python3
 """Take In XML Data Set and get out the Source Query"""
 import argparse
 import xml.etree.ElementTree as et
