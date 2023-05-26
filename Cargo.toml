@@ -8,4 +8,5 @@ assert_matches = "1.5.0"
 rstest = "0.17.0"
 
 [dependencies]
+serde = { version = "1.0.163", features = ["derive"] }
 thiserror = "1.0.40"
