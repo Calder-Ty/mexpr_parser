@@ -25,7 +25,7 @@ pub(crate) mod parse_utils {
         if pointer + size > text.len() {
             end = text.len();
         } else {
-            end = pointer + size
+            end = pointer + size;
         }
 
         let ctx = &text[start..end];
@@ -35,8 +35,8 @@ pub(crate) mod parse_utils {
 
     #[inline]
     pub(crate) fn skip_whitespace(text: &str) -> usize {
-        text.char_indices()
-            .take_while(|(_, c)| (*c).is_whitespace())
+        text.chars()
+            .take_while(|c| (*c).is_whitespace())
             .count()
     }
 

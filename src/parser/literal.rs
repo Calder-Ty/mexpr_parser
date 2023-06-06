@@ -1,4 +1,5 @@
 use super::parse_utils::{self, ParseError, ParseResult};
+use serde::Serialize;
 
 /// Literal:
 ///     LogicalLiteral
@@ -6,7 +7,7 @@ use super::parse_utils::{self, ParseError, ParseResult};
 ///     TextLiteral
 ///     NullLiteral
 ///     VerbatimLiteral
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub(crate) enum Literal<'a> {
     Logical(bool),
     Text(&'a str),
@@ -15,7 +16,7 @@ pub(crate) enum Literal<'a> {
     Verbatim(&'a str),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub(crate) enum NumberType {
     Int(isize),
     Float(f64),

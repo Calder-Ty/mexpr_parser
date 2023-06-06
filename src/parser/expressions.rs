@@ -6,6 +6,7 @@ use super::{
 };
 use crate::ParseError;
 use primary_expressions::PrimaryExpression;
+use serde::Serialize;
 
 const PRIMITIVE_TYPES: [&str; 18] = [
     "any",
@@ -28,7 +29,7 @@ const PRIMITIVE_TYPES: [&str; 18] = [
     "type",
 ];
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub(crate) enum Expression<'a> {
     Let(LetExpression<'a>),
     Primary(PrimaryExpression<'a>),
@@ -62,7 +63,7 @@ impl<'a> Expression<'a> {
 ///     variable-name <=> expression
 /// variable-name:
 ///     identifier
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub struct LetExpression<'a> {
     variable_list: Vec<VariableAssignment<'a>>,
 }
@@ -100,7 +101,7 @@ impl<'a> LetExpression<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 struct VariableAssignment<'a> {
     name: Identifier<'a>,
     expr: PrimaryExpression<'a>,
@@ -128,7 +129,7 @@ impl<'a> VariableAssignment<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub(crate) struct TypeExpression<'a> {
     text: &'a str,
 }

@@ -7,6 +7,7 @@ use crate::{
     ParseError,
 };
 
+use serde::Serialize;
 use super::Expression;
 
 // primary-expression:
@@ -23,7 +24,7 @@ use super::Expression;
 //
 /// For now We are only implementing a parser for Identifier Expression and
 /// Invoke Expressions. This is the minimum we need for the task.
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub(crate) enum PrimaryExpression<'a> {
     /// invoke-expression:
     ///     primary-expression <(> argument-listopt <)>
@@ -58,7 +59,7 @@ impl<'a> PrimaryExpression<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub(crate) struct ListExpression<'a> {
     elements: Vec<Expression<'a>>,
 }
@@ -97,7 +98,7 @@ impl<'a> ListExpression<'a> {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub(crate) struct Invocation<'a> {
     pub invoker: PrimaryExpression<'a>,
     pub args: Vec<PrimaryExpression<'a>>,

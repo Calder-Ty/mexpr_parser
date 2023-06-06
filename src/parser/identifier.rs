@@ -1,4 +1,5 @@
 use std::unreachable;
+use serde::Serialize;
 
 use super::{
     literal::Literal,
@@ -12,7 +13,7 @@ fn is_identifier_part(c: &char) -> bool {
     c.is_alphabetic() || c.is_ascii_digit() || *c == '_' || *c == '.'
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize)]
 pub(crate) struct Identifier<'a> {
     text: &'a str,
 }
