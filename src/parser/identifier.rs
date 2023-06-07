@@ -13,7 +13,7 @@ fn is_identifier_part(c: &char) -> bool {
     c.is_alphabetic() || c.is_ascii_digit() || *c == '_' || *c == '.'
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, PartialEq, Eq)]
 pub(crate) struct Identifier<'a> {
     text: &'a str,
 }

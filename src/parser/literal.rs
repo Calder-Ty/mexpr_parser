@@ -7,7 +7,7 @@ use serde::Serialize;
 ///     TextLiteral
 ///     NullLiteral
 ///     VerbatimLiteral
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, PartialEq)]
 pub(crate) enum Literal<'a> {
     Logical(bool),
     Text(&'a str),
@@ -16,7 +16,7 @@ pub(crate) enum Literal<'a> {
     Verbatim(&'a str),
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, PartialEq)]
 pub(crate) enum NumberType {
     Int(isize),
     Float(f64),

@@ -29,7 +29,7 @@ const PRIMITIVE_TYPES: [&str; 18] = [
     "type",
 ];
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, PartialEq)]
 pub(crate) enum Expression<'a> {
     Let(LetExpression<'a>),
     Primary(PrimaryExpression<'a>),
@@ -63,7 +63,7 @@ impl<'a> Expression<'a> {
 ///     variable-name <=> expression
 /// variable-name:
 ///     identifier
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, PartialEq)]
 pub struct LetExpression<'a> {
     variable_list: Vec<VariableAssignment<'a>>,
 }
@@ -101,7 +101,7 @@ impl<'a> LetExpression<'a> {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, PartialEq)]
 struct VariableAssignment<'a> {
     name: Identifier<'a>,
     expr: PrimaryExpression<'a>,
@@ -129,7 +129,7 @@ impl<'a> VariableAssignment<'a> {
     }
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, PartialEq)]
 pub(crate) struct TypeExpression<'a> {
     text: &'a str,
 }
