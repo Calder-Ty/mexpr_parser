@@ -1,4 +1,5 @@
 mod primary_expressions;
+mod record;
 
 use super::{
     identifier::Identifier,

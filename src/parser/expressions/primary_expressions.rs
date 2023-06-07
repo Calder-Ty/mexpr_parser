@@ -8,12 +8,12 @@ use crate::{
 };
 
 use serde::Serialize;
-use super::Expression;
+use super::{Expression, record::Record};
 
 // primary-expression:
 // x      literal-expression
 // x      list-expression
-//       record-expression
+// x      record-expression
 // x       identifier-expression
 //       section-access-expression
 //       parenthesized-expression
@@ -35,6 +35,7 @@ pub(crate) enum PrimaryExpression<'a> {
     Identifier(Identifier<'a>),
     Invoke(Box<Invocation<'a>>),
     Literal(Literal<'a>),
+    Record(Record<'a>),
 }
 
 impl<'a> PrimaryExpression<'a> {
@@ -42,6 +43,9 @@ impl<'a> PrimaryExpression<'a> {
     pub fn try_parse(text: &'a str) -> Result<(usize, Self), ParseError> {
         if let Ok((i, val)) = Literal::try_parse(text) {
             return Ok((i, PrimaryExpression::Literal(val)));
+        }
+        if let Ok((i, val)) = Record::try_parse(text) {
+            return Ok((i, PrimaryExpression::Record(val)));
         }
         if let Ok((i, val)) = Invocation::try_parse(text) {
             return Ok((i, PrimaryExpression::Invoke(Box::new(val))));
@@ -245,6 +249,7 @@ mod tests {
         for (i, arg) in invokation.args.iter().enumerate() {
             match arg {
                 PrimaryExpression::List(_) => todo!(),
+                PrimaryExpression::Record(_) => todo!(),
                 PrimaryExpression::Identifier(ident) => {
                     assert_matches!(&vars[i], PrimaryExpression::Identifier(expected) => {
                         assert_eq!(ident.text(), expected.text())
@@ -302,6 +307,7 @@ mod tests {
 
         for (i, arg) in list.elements.iter().enumerate() {
             match arg {
+                Expression::Primary(PrimaryExpression::Record(_)) => todo!(),
                 Expression::Primary(PrimaryExpression::List(_)) => todo!(),
                 Expression::Primary(PrimaryExpression::Identifier(ident)) => {
                     assert_matches!(&exp_elements[i], Expression::Primary(PrimaryExpression::Identifier(expected)) => {
