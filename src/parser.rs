@@ -1,7 +1,26 @@
+use std::eprintln;
+
+use self::{
+    expressions::LetExpression,
+    parse_utils::{skip_whitespace, ParseResult},
+};
+
+pub mod expressions;
 mod identifier;
 mod literal;
-pub mod expressions;
 
+pub fn try_parse(text: &str) -> ParseResult<Vec<LetExpression<'_>>> {
+    let mut res = vec![];
+    // Parsing the text
+    let mut parse_pointer = skip_whitespace(text);
+    while parse_pointer < text.len() {
+        let (delta, val) = LetExpression::try_parse(&text[parse_pointer..])?;
+        res.push(val);
+        parse_pointer += delta;
+        parse_pointer += skip_whitespace(&text[parse_pointer..]);
+    }
+    Ok((parse_pointer, res))
+}
 
 pub(crate) mod parse_utils {
     use thiserror::Error;
@@ -35,9 +54,7 @@ pub(crate) mod parse_utils {
 
     #[inline]
     pub(crate) fn skip_whitespace(text: &str) -> usize {
-        text.chars()
-            .take_while(|c| (*c).is_whitespace())
-            .count()
+        text.chars().take_while(|c| (*c).is_whitespace()).count()
     }
 
     #[cfg(test)]
@@ -78,4 +95,3 @@ pub(crate) mod parse_utils {
         }
     }
 }
-

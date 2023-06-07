@@ -98,7 +98,26 @@ impl<'a> LetExpression<'a> {
             parse_pointer += 1 // Skip the ','
         }
 
-        Ok((parse_pointer, Self { variable_list }))
+        // Now for the In part
+        parse_pointer += skip_whitespace(&text[parse_pointer..]);
+
+        let in_sep = &text[parse_pointer..]
+            .chars()
+            .skip(2)
+            .next()
+            .unwrap_or('_')
+            .is_whitespace();
+        if !(text[parse_pointer..].starts_with("in") && *in_sep) {
+            return Err(Box::new(ParseError::InvalidInput {
+                pointer: parse_pointer,
+                ctx: parse_utils::gen_error_ctx(text, parse_pointer, 5),
+            }));
+        }
+        parse_pointer += 3; // Skip 'in '
+        // I Don't care about the In expression right now
+        let (delta, _) = Expression::try_parse(&text[parse_pointer..])?;
+
+        Ok((parse_pointer+delta, Self { variable_list }))
     }
 }
 
@@ -192,7 +211,8 @@ mod tests {
 
     #[rstest]
     #[case(
-    r#"let    var = "Not a variable""#,
+    r#"let    var = "Not a variable" in stuff"#,
+38,
     vec![
         VariableAssignment {
             name:Identifier::new("var"),
@@ -202,7 +222,9 @@ mod tests {
 )]
     #[case(
     r#"let    var = "Not a variable",
-    var2 = 0xff"#,
+    var2 = 0xff
+    in stuff"#,
+        59,
     vec![
         VariableAssignment {
             name:Identifier::new("var"), 
@@ -214,9 +236,10 @@ mod tests {
         }
     ]
 )]
-    fn test_let_expression_parser(#[case] input_text: &str, #[case] expr: Vec<VariableAssignment>) {
-        let (_, let_expr) = LetExpression::try_parse(input_text)
+    fn test_let_expression_parser(#[case] input_text: &str, #[case] expected_delta: usize, #[case] expr: Vec<VariableAssignment>) {
+        let (delta, let_expr) = LetExpression::try_parse(input_text)
             .expect(format!("failed to parse test input '{}'", &input_text).as_str());
+        assert_eq!(expected_delta, delta);
         assert_eq!(let_expr.variable_list.len(), expr.len());
         for (i, _actual) in let_expr.variable_list.iter().enumerate() {
             assert_matches!(&expr[i], _actual)
