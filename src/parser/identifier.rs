@@ -10,7 +10,7 @@ use super::{
 fn is_identifier_part(c: &char) -> bool {
     // For now just '.', rather than finding a group for Mn, Mc or Pc
     // to represent continuation characters
-    c.is_alphabetic() || c.is_ascii_digit() || *c == '_' || *c == '.'
+    c.is_alphabetic() || c.is_ascii_digit() || *c == '_' || *c == '.' || *c == '#'
 }
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
