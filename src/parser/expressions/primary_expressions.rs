@@ -1,14 +1,15 @@
 use crate::{
     parser::{
         identifier::Identifier,
+        keywords::is_func_keyword,
         literal::Literal,
         parse_utils::{self, gen_error_ctx, skip_whitespace, ParseResult},
     },
     ParseError,
 };
 
+use super::{record::Record, Expression};
 use serde::Serialize;
-use super::{Expression, record::Record};
 
 // primary-expression:
 // x      literal-expression
@@ -116,8 +117,23 @@ impl<'a> Invocation<'a> {
 
     pub fn try_parse(text: &'a str) -> ParseResult<Invocation<'a>> {
         // To start, we need to identifiy the calling Expresion. Lets try:
-        let mut parse_pointer = 0;
-        let (delta, invoker) = Identifier::try_parse(text)?;
+        let mut parse_pointer = skip_whitespace(text);
+
+        // Check if is a Keyword function. This is not well documented in the standard. But there
+        // are a few Keywords that are actually functions. We Should check if it is one of them.
+        let ident_txt_stop = text[parse_pointer..]
+            .chars()
+            .take_while(|c| *c != '(')
+            .count();
+
+        let (delta, invoker) = if is_func_keyword(&text[parse_pointer..parse_pointer + ident_txt_stop]) {
+            (
+                ident_txt_stop,
+                Identifier::from_keyword(&text[parse_pointer..parse_pointer + ident_txt_stop]),
+            )
+        } else {
+            Identifier::try_parse(&text[parse_pointer..])?
+        };
 
         parse_pointer += delta;
         let mut args = vec![];
@@ -231,6 +247,17 @@ mod tests {
         PrimaryExpression::Literal(Literal::Number(NumberType::Int(0x25))),
     ],
 52)
+]
+    #[case(
+    r#"#date(" Not a 235.E10 variable", false, 1234.5, 0x25)"#, 
+    "#date", 
+    vec![
+        PrimaryExpression::Literal(Literal::Text(" Not a 235.E10 variable")), 
+        PrimaryExpression::Literal(Literal::Logical(false)),
+        PrimaryExpression::Literal(Literal::Number(NumberType::Float(1234.5))),
+        PrimaryExpression::Literal(Literal::Number(NumberType::Int(0x25))),
+    ],
+53)
 ]
     fn test_invokation_parser_mixed(
         #[case] input_text: &str,

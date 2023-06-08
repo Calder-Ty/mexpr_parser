@@ -1,6 +1,8 @@
 use std::unreachable;
 use serde::Serialize;
 
+use crate::parser::keywords::is_keyword;
+
 use super::{
     literal::Literal,
     parse_utils::{self, ParseError, ParseResult},
@@ -10,7 +12,7 @@ use super::{
 fn is_identifier_part(c: &char) -> bool {
     // For now just '.', rather than finding a group for Mn, Mc or Pc
     // to represent continuation characters
-    c.is_alphabetic() || c.is_ascii_digit() || *c == '_' || *c == '.' || *c == '#'
+    c.is_alphabetic() || c.is_ascii_digit() || *c == '_' || *c == '.'
 }
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
@@ -21,6 +23,11 @@ pub(crate) struct Identifier<'a> {
 impl<'a> Identifier<'a> {
     #[cfg(test)]
     pub(crate) fn new(text: &'a str) -> Self {
+        Self { text }
+    }
+
+    pub fn from_keyword(text: &'a str) -> Self {
+        assert!(is_keyword(text));
         Self { text }
     }
 

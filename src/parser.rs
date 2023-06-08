@@ -1,5 +1,3 @@
-use std::eprintln;
-
 use self::{
     expressions::LetExpression,
     parse_utils::{skip_whitespace, ParseResult},
@@ -8,6 +6,7 @@ use self::{
 pub mod expressions;
 mod identifier;
 mod literal;
+mod keywords;
 
 pub fn try_parse(text: &str) -> ParseResult<Vec<LetExpression<'_>>> {
     let mut res = vec![];
