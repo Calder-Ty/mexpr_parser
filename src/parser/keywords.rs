@@ -6,39 +6,38 @@
 //!    section shared then true try type #binary #date #datetime
 //!    #datetimezone #duration #infinity #nan #sections #shared #table #time
 
-const AND: &str = "and";
-const AS: &str = "as";
-const EACH: &str = "each";
-const ELSE: &str = "else";
-const ERROR: &str = "error";
-const FALSE: &str = "false";
-const IF: &str = "if";
-const IN: &str = "in";
-const IS: &str = "is";
-const LET: &str = "let";
-const META: &str = "meta";
-const NOT: &str = "not";
-const NULL: &str = "null";
-const OR: &str = "or";
-const OTHERWISE: &str = "otherwise";
-const SECTION: &str = "section";
-const SHARED: &str = "shared";
-const THEN: &str = "then";
-const TRUE: &str = "true";
-const TRY: &str = "try";
-const TYPE: &str = "type";
-
-const BINARY: &str = "#binary";
-const DATE: &str = "#date";
-const DATETIME: &str = "#datetime";
-const DATETIMEZONE: &str = "#datetimezone";
-const DURATION: &str = "#duration";
-const INFINITY: &str = "#infinity";
-const NAN: &str = "#nan";
-const SECTIONS: &str = "#sections";
-const SHARED_HASH: &str = "#shared";
-const TABLE: &str = "#table";
-const TIME: &str = "#time";
+pub const AND: &str = "and";
+pub const AS: &str = "as";
+pub const EACH: &str = "each";
+pub const ELSE: &str = "else";
+pub const ERROR: &str = "error";
+pub const FALSE: &str = "false";
+pub const IF: &str = "if";
+pub const IN: &str = "in";
+pub const IS: &str = "is";
+pub const LET: &str = "let";
+pub const META: &str = "meta";
+pub const NOT: &str = "not";
+pub const NULL: &str = "null";
+pub const OR: &str = "or";
+pub const OTHERWISE: &str = "otherwise";
+pub const SECTION: &str = "section";
+pub const SHARED: &str = "shared";
+pub const THEN: &str = "then";
+pub const TRUE: &str = "true";
+pub const TRY: &str = "try";
+pub const TYPE: &str = "type";
+pub const BINARY: &str = "#binary";
+pub const DATE: &str = "#date";
+pub const DATETIME: &str = "#datetime";
+pub const DATETIMEZONE: &str = "#datetimezone";
+pub const DURATION: &str = "#duration";
+pub const INFINITY: &str = "#infinity";
+pub const NAN: &str = "#nan";
+pub const SECTIONS: &str = "#sections";
+pub const SHARED_HASH: &str = "#shared";
+pub const TABLE: &str = "#table";
+pub const TIME: &str = "#time";
 
 const FUNC_KEYWORDS: [&str; 7] = [BINARY, DATE, DATETIME, DATETIMEZONE, DURATION, TABLE, TIME];
 
