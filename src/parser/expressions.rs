@@ -1,5 +1,7 @@
 mod primary_expressions;
 mod record;
+mod logical;
+
 
 use super::{
     identifier::Identifier,
@@ -34,19 +36,19 @@ const PRIMITIVE_TYPES: [&str; 18] = [
 pub(crate) enum Expression<'a> {
     Let(LetExpression<'a>),
     Primary(PrimaryExpression<'a>),
-    Type(TypeExpression<'a>),
+    Type(Type<'a>),
 }
 
 impl<'a> Expression<'a> {
     fn try_parse(text: &'a str) -> ParseResult<Self> {
-        if let Ok((i, val)) = TypeExpression::try_parse(text) {
-            return Ok((i, Expression::Type(val)));
-        }
         if let Ok((i, val)) = LetExpression::try_parse(text) {
             return Ok((i, Expression::Let(val)));
         }
         if let Ok((i, val)) = PrimaryExpression::try_parse(text) {
             return Ok((i, Expression::Primary(val)));
+        }
+        if let Ok((i, val)) = Type::try_parse(text) {
+            return Ok((i, Expression::Type(val)));
         }
         Err(Box::new(ParseError::InvalidInput {
             pointer: 0,
@@ -146,6 +148,24 @@ impl<'a> VariableAssignment<'a> {
         parse_pointer += delta;
 
         Ok((parse_pointer, Self { name, expr }))
+    }
+}
+
+
+#[derive(Debug, Serialize, PartialEq)]
+pub(crate) enum Type<'a> {
+    TypeStatement(TypeExpression<'a>),
+    Primary(PrimaryExpression<'a>),
+}
+
+impl<'a> Type <'a> {
+    pub fn try_parse(text: &'a str) -> ParseResult<Self> {
+        if let Ok((i, val)) = TypeExpression::try_parse(text) {
+            return Ok((i, Type::TypeStatement(val)));
+        }
+
+        let (i, val) = PrimaryExpression::try_parse(text)?;
+        Ok((i, Type::Primary(val)))
     }
 }
 

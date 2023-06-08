@@ -126,14 +126,15 @@ impl<'a> Invocation<'a> {
             .take_while(|c| *c != '(')
             .count();
 
-        let (delta, invoker) = if is_func_keyword(&text[parse_pointer..parse_pointer + ident_txt_stop]) {
-            (
-                ident_txt_stop,
-                Identifier::from_keyword(&text[parse_pointer..parse_pointer + ident_txt_stop]),
-            )
-        } else {
-            Identifier::try_parse(&text[parse_pointer..])?
-        };
+        let (delta, invoker) =
+            if is_func_keyword(&text[parse_pointer..parse_pointer + ident_txt_stop]) {
+                (
+                    ident_txt_stop,
+                    Identifier::from_keyword(&text[parse_pointer..parse_pointer + ident_txt_stop]),
+                )
+            } else {
+                Identifier::try_parse(&text[parse_pointer..])?
+            };
 
         parse_pointer += delta;
         let mut args = vec![];
@@ -149,6 +150,11 @@ impl<'a> Invocation<'a> {
         }
         // Now we need to Parse the contents of the function invocation
         loop {
+            // Check if it is empty function call
+            if text[parse_pointer..].chars().next().unwrap_or(')') == ')' {
+                parse_pointer += 1; // Add to account that we have moved one forward
+                break;
+            }
             let (delta, arg) = PrimaryExpression::try_parse(&text[parse_pointer..])?;
             args.push(arg);
             parse_pointer = parse_pointer
@@ -193,6 +199,7 @@ mod tests {
     use rstest::rstest;
 
     #[rstest]
+    #[case(r#"This()"#, "This", vec![])]
     #[case(r#"This("Not a variable", "More Text")"#, "This", vec!["Not a variable", "More Text"])]
     #[case(r#"This("Not a variable")"#, "This", vec!["Not a variable"])]
     fn test_invokation_parser(
@@ -318,7 +325,7 @@ mod tests {
         Expression::Primary(PrimaryExpression::Literal(Literal::Text(" Not a 235.E10 variable"))),
         Expression::Primary(PrimaryExpression::Literal(Literal::Logical(false))),
         Expression::Primary(PrimaryExpression::Literal(Literal::Number(NumberType::Float(1234.5)))),
-        Expression::Type(TypeExpression { text: "type datetime"} )
+        Expression::Type(crate::parser::expressions::Type::TypeStatement( TypeExpression { text: "type datetime"} ))
     ],
 58)
 ]
@@ -348,11 +355,16 @@ mod tests {
                     })
                 }
                 Expression::Let(_) => assert!(false),
-                Expression::Type(actual_type) => {
-                    assert_matches!(exp_elements[i], Expression::Type(TypeExpression {text: exp_text }) => {
+                Expression::Type(
+                    crate::parser::expressions::Type::TypeStatement(actual_type)) => {
+                    assert_matches!(exp_elements[i], Expression::Type(
+                        crate::parser::expressions::Type::TypeStatement(TypeExpression{text: exp_text})) => {
                         assert_eq!(exp_text, actual_type.text)
 
                     })
+                },
+                Expression::Type(_) => {
+                    assert!(false)
                 }
             }
         }

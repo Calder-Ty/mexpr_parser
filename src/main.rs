@@ -1,7 +1,7 @@
 //! Parse some of that sweet, sweet text
 use std::{
     eprintln,
-    io::{self, Read, Result},
+    io::{self, Read},
     println,
 };
 
