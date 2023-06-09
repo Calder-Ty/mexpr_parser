@@ -5,8 +5,8 @@ use self::{
 
 pub mod expressions;
 mod identifier;
-mod literal;
 mod keywords;
+mod literal;
 
 pub fn try_parse(text: &str) -> ParseResult<Vec<LetExpression<'_>>> {
     let mut res = vec![];
@@ -54,6 +54,11 @@ pub(crate) mod parse_utils {
     #[inline]
     pub(crate) fn skip_whitespace(text: &str) -> usize {
         text.chars().take_while(|c| (*c).is_whitespace()).count()
+    }
+
+    #[inline]
+    pub fn followed_by_whitespace(text: &str, len: usize) -> bool {
+        text.chars().skip(len).next().unwrap_or('_').is_whitespace()
     }
 
     #[cfg(test)]
