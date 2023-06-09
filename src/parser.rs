@@ -6,6 +6,7 @@ use self::{
 pub mod expressions;
 mod identifier;
 mod keywords;
+mod operators;
 mod literal;
 
 pub fn try_parse(text: &str) -> ParseResult<Vec<LetExpression<'_>>> {
