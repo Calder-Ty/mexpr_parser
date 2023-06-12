@@ -58,9 +58,35 @@ struct RelationalExpression {}
 ///       metadata-expression * multiplicative-expression
 ///       metadata-expression / multiplicative-expression
 #[derive(Debug, Serialize, PartialEq)]
-struct AdditiveExpression<'a> {
+pub(crate) struct AdditiveExpression<'a> {
     rhs: MultiplicativeExpression<'a>,
-    lhs: Option<Lhs<'a, MultiplicativeExpression<'a>>>,
+    lhs: Option<Lhs<'a, Box<AdditiveExpression<'a>>>>,
+}
+
+impl<'a> AdditiveExpression<'a> {
+    pub fn try_parse(text: &'a str) -> ParseResult<Self> {
+        let mut parse_pointer = skip_whitespace(text);
+
+        let (delta, rhs) = MultiplicativeExpression::try_parse(&text[parse_pointer..])?;
+        parse_pointer += delta;
+
+        let lookahead_pointer = parse_pointer + skip_whitespace(&text[parse_pointer..]);
+
+        let operator = match text[lookahead_pointer..].chars().next().unwrap_or('_') {
+            operators::PLUS => operators::PLUS_STR,
+            operators::MINUS => operators::MINUS_STR,
+            _ => return Ok((parse_pointer, (Self { rhs, lhs: None }))),
+        };
+
+        parse_pointer = lookahead_pointer + 1;
+
+        let (delta, expr) = AdditiveExpression::try_parse(&text[parse_pointer..])?;
+        parse_pointer += delta;
+
+        let lhs = Some(Lhs::new(Box::new(expr), operator));
+
+        Ok((parse_pointer, (Self { rhs, lhs })))
+    }
 }
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -188,6 +214,43 @@ mod tests {
 
     use super::*;
     use rstest::rstest;
+
+    #[rstest]
+    #[case(
+        "1 + 2",
+        5,
+        AdditiveExpression {
+            rhs: MultiplicativeExpression {
+                rhs: MetadataExpression {
+                    rhs: UnaryExpression::Type(Type::Primary(PrimaryExpression::Literal(
+                        Literal::Number(NumberType::Float(1.0)),
+                    ))),
+                    lhs: None,
+                },
+                lhs: None,
+            },
+            lhs: Some(Lhs::new(
+                Box::new(AdditiveExpression {
+                    rhs: MultiplicativeExpression {
+                        rhs: MetadataExpression {
+                            rhs: UnaryExpression::Type(Type::Primary(PrimaryExpression::Literal(
+                                Literal::Number(NumberType::Float(2.0)),
+                            ))),
+                            lhs: None,
+                        },
+                        lhs: None,
+                    },
+                    lhs: None,
+                }),
+                "+",
+            )),
+        },
+    )]
+    fn test_additive_expression(#[case] input: &str, #[case] expected_delta: usize, #[case] expected: AdditiveExpression) {
+        let (delta, val) = AdditiveExpression::try_parse(input).expect("Test Failed");
+        assert_eq!(expected_delta, delta);
+        assert_eq!(expected, val);
+    }
 
     #[rstest]
     fn test_multiplicative_expression() {

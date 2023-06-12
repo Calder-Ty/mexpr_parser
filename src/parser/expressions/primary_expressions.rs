@@ -106,12 +106,12 @@ impl<'a> ListExpression<'a> {
 #[derive(Debug, Serialize, PartialEq)]
 pub(crate) struct Invocation<'a> {
     pub invoker: PrimaryExpression<'a>,
-    pub args: Vec<PrimaryExpression<'a>>,
+    pub args: Vec<Expression<'a>>,
 }
 
 impl<'a> Invocation<'a> {
     #[cfg(test)]
-    pub fn new(invoker: PrimaryExpression<'a>, args: Vec<PrimaryExpression<'a>>) -> Self {
+    pub fn new(invoker: PrimaryExpression<'a>, args: Vec<Expression<'a>>) -> Self {
         Self { invoker, args }
     }
 
@@ -155,7 +155,7 @@ impl<'a> Invocation<'a> {
                 parse_pointer += 1; // Add to account that we have moved one forward
                 break;
             }
-            let (delta, arg) = PrimaryExpression::try_parse(&text[parse_pointer..])?;
+            let (delta, arg) = Expression::try_parse_with_lookahead(&text[parse_pointer..], arg_lookahead)?;
             args.push(arg);
             parse_pointer = parse_pointer
                 + delta
@@ -184,6 +184,24 @@ impl<'a> Invocation<'a> {
         ))
     }
 }
+
+
+/// Validates that the text is followed by a `,` or `)`
+fn arg_lookahead(text: &str) -> bool {
+    let lookahead_pointer = skip_whitespace(text);
+
+    if text[lookahead_pointer..].chars().next().unwrap_or(')') == ')' {
+        true
+    }
+    else if text[lookahead_pointer..].chars().next().unwrap_or(',') == ',' {
+        true
+    }
+    else {
+        false
+    }
+}
+
+
 
 #[cfg(test)]
 mod tests {
@@ -217,7 +235,7 @@ mod tests {
         assert_eq!(invokation.args.len(), vars.len());
         for (i, arg) in invokation.args.iter().enumerate() {
             match arg {
-                PrimaryExpression::Literal(Literal::Text(v)) => assert_eq!(v, &vars[i]),
+                Expression::Primary(PrimaryExpression::Literal(Literal::Text(v))) => assert_eq!(v, &vars[i]),
                 _ => assert!(false),
             }
         }
@@ -282,18 +300,21 @@ mod tests {
 
         for (i, arg) in invokation.args.iter().enumerate() {
             match arg {
-                PrimaryExpression::List(_) => todo!(),
-                PrimaryExpression::Record(_) => todo!(),
-                PrimaryExpression::Identifier(ident) => {
+                Expression::Primary(PrimaryExpression::List(_)) => todo!(),
+                Expression::Primary(PrimaryExpression::Record(_)) => todo!(),
+                Expression::Primary(PrimaryExpression::Identifier(ident)) => {
                     assert_matches!(&vars[i], PrimaryExpression::Identifier(expected) => {
                         assert_eq!(ident.text(), expected.text())
                     })
                 }
-                PrimaryExpression::Invoke(_invoke) => todo!(),
-                PrimaryExpression::Literal(_literal) => {
+                Expression::Primary(PrimaryExpression::Invoke(_invoke)) => todo!(),
+                Expression::Primary(PrimaryExpression::Literal(_literal)) => {
                     assert_matches!(&vars[i], PrimaryExpression::Literal(expected) => {
                         assert_matches!(expected, _literal)
                     })
+                }
+                Expression::Let(_) | Expression::Logical(_) | Expression::Type(_) => {
+                    todo!("Need to test these cases")
                 }
             }
         }
@@ -365,6 +386,9 @@ mod tests {
                 },
                 Expression::Type(_) => {
                     assert!(false)
+                }
+                Expression::Logical(_) => {
+                    todo!()
                 }
             }
         }

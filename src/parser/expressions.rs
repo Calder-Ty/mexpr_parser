@@ -1,7 +1,8 @@
+mod logical;
 mod primary_expressions;
 mod record;
-mod logical;
 
+use self::logical::AdditiveExpression;
 
 use super::{
     identifier::Identifier,
@@ -49,6 +50,31 @@ impl<'a> Expression<'a> {
         }
         if let Ok((i, val)) = Type::try_parse(text) {
             return Ok((i, Expression::Type(val)));
+        }
+        Err(Box::new(ParseError::InvalidInput {
+            pointer: 0,
+            ctx: gen_error_ctx(text, 0, 5),
+        }))
+    }
+
+    fn try_parse_with_lookahead<F>(text: &'a str, lookahead_func: F) -> ParseResult<Self>
+    where
+        F: Fn(&'a str) -> bool,
+    {
+        if let Ok((i, val)) = LetExpression::try_parse(text) {
+            if lookahead_func(&text[i..]) {
+                return Ok((i, Expression::Let(val)));
+            }
+        }
+        if let Ok((i, val)) = PrimaryExpression::try_parse(text) {
+            if lookahead_func(&text[i..]) {
+                return Ok((i, Expression::Primary(val)));
+            }
+        }
+        if let Ok((i, val)) = Type::try_parse(text) {
+            if lookahead_func(&text[i..]) {
+                return Ok((i, Expression::Type(val)));
+            }
         }
         Err(Box::new(ParseError::InvalidInput {
             pointer: 0,
@@ -116,10 +142,10 @@ impl<'a> LetExpression<'a> {
             }));
         }
         parse_pointer += 3; // Skip 'in '
-        // I Don't care about the In expression right now
+                            // I Don't care about the In expression right now
         let (delta, _) = Expression::try_parse(&text[parse_pointer..])?;
 
-        Ok((parse_pointer+delta, Self { variable_list }))
+        Ok((parse_pointer + delta, Self { variable_list }))
     }
 }
 
@@ -151,14 +177,13 @@ impl<'a> VariableAssignment<'a> {
     }
 }
 
-
 #[derive(Debug, Serialize, PartialEq)]
 pub(crate) enum Type<'a> {
     TypeStatement(TypeExpression<'a>),
     Primary(PrimaryExpression<'a>),
 }
 
-impl<'a> Type <'a> {
+impl<'a> Type<'a> {
     pub fn try_parse(text: &'a str) -> ParseResult<Self> {
         if let Ok((i, val)) = TypeExpression::try_parse(text) {
             return Ok((i, Type::TypeStatement(val)));
@@ -256,7 +281,11 @@ mod tests {
         }
     ]
 )]
-    fn test_let_expression_parser(#[case] input_text: &str, #[case] expected_delta: usize, #[case] expr: Vec<VariableAssignment>) {
+    fn test_let_expression_parser(
+        #[case] input_text: &str,
+        #[case] expected_delta: usize,
+        #[case] expr: Vec<VariableAssignment>,
+    ) {
         let (delta, let_expr) = LetExpression::try_parse(input_text)
             .expect(format!("failed to parse test input '{}'", &input_text).as_str());
         assert_eq!(expected_delta, delta);
@@ -285,7 +314,7 @@ var = "Not a variable""#,
     "var",
     PrimaryExpression::Invoke(Box::new(primary_expressions::Invocation::new(
         PrimaryExpression::Identifier(Identifier::new("This")),
-        vec![PrimaryExpression::Literal(Literal::Text("Not a variable"))]
+        vec![Expression::Primary(PrimaryExpression::Literal(Literal::Text("Not a variable")))]
     ))),
     44
 )]
@@ -294,7 +323,7 @@ var = "Not a variable""#,
     "var",
     PrimaryExpression::Invoke(Box::new(primary_expressions::Invocation::new(
         PrimaryExpression::Identifier(Identifier::new("This.that")),
-        vec![PrimaryExpression::Literal(Literal::Text("Not a variable"))]
+        vec![Expression::Primary(PrimaryExpression::Literal(Literal::Text("Not a variable")))]
     ))),
     52
 )]
