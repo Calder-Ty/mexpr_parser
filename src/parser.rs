@@ -58,8 +58,10 @@ pub(crate) mod parse_utils {
     }
 
     #[inline]
-    pub fn followed_by_whitespace(text: &str, len: usize) -> bool {
-        text.chars().skip(len).next().unwrap_or('_').is_whitespace()
+    pub fn followed_by_valid_seperator(text: &str, len: usize) -> bool {
+        let next = text.chars().skip(len).next().unwrap_or('_');
+        // Valid Separator
+        next.is_whitespace() || next == ','
     }
 
     #[cfg(test)]

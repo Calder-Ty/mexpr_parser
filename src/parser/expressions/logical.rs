@@ -5,7 +5,7 @@ use serde::Serialize;
 use crate::{
     parser::{
         keywords, operators,
-        parse_utils::{followed_by_whitespace, gen_error_ctx, skip_whitespace, ParseResult},
+        parse_utils::{followed_by_valid_seperator, gen_error_ctx, skip_whitespace, ParseResult},
     },
     ParseError,
 };
@@ -125,7 +125,7 @@ impl<'a> MetadataExpression<'a> {
 
         let lookahead_pointer = parse_pointer + skip_whitespace(&text[parse_pointer..]);
         if !(text[lookahead_pointer..].starts_with(keywords::META)
-            && followed_by_whitespace(&text[lookahead_pointer..], 4))
+            && followed_by_valid_seperator(&text[lookahead_pointer..], 4))
         {
             return Ok((parse_pointer, (Self { rhs, lhs: None })));
         };

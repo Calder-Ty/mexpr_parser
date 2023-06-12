@@ -1,4 +1,4 @@
-use super::{parse_utils::{self, ParseError, ParseResult, followed_by_whitespace}, keywords};
+use super::{parse_utils::{self, ParseError, ParseResult, followed_by_valid_seperator}, keywords};
 use serde::Serialize;
 
 /// Literal:
@@ -123,7 +123,7 @@ impl<'a> Literal<'a> {
             } else {
                 Err(Box::new(ParseError::InvalidInput{ pointer: text_start, ctx: parse_utils::gen_error_ctx(text, text_start, 5) }))
             }
-        } else if text[text_start..].starts_with(keywords::NULL) && followed_by_whitespace(&text[text_start..], 4) {
+        } else if text[text_start..].starts_with(keywords::NULL) && followed_by_valid_seperator(&text[text_start..], 4) {
             Ok((text_start + 4, Literal::Null))
         } else {
             Err(Box::new(ParseError::InvalidInput{ pointer: text_start, ctx: parse_utils::gen_error_ctx(text, text_start, 5) }))
