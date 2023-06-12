@@ -1,3 +1,5 @@
+use std::eprintln;
+
 use crate::{
     parser::{
         identifier::Identifier,
@@ -91,6 +93,7 @@ impl<'a> ListExpression<'a> {
                 break;
             }
             if text[parse_pointer..].chars().next().unwrap_or(',') != ',' {
+                eprintln!("This Is not a regular Primary Expression, halting!");
                 panic!(
                     "This is unexpected:\n{0}",
                     gen_error_ctx(text, parse_pointer, 10)

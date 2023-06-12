@@ -38,6 +38,7 @@ pub(crate) enum Expression<'a> {
     Let(LetExpression<'a>),
     Primary(PrimaryExpression<'a>),
     Type(Type<'a>),
+    Logical(AdditiveExpression<'a>),
 }
 
 impl<'a> Expression<'a> {
@@ -50,6 +51,9 @@ impl<'a> Expression<'a> {
         }
         if let Ok((i, val)) = Type::try_parse(text) {
             return Ok((i, Expression::Type(val)));
+        }
+        if let Ok((i, val)) = AdditiveExpression::try_parse(text) {
+            return Ok((i, Expression::Logical(val)));
         }
         Err(Box::new(ParseError::InvalidInput {
             pointer: 0,
@@ -74,6 +78,11 @@ impl<'a> Expression<'a> {
         if let Ok((i, val)) = Type::try_parse(text) {
             if lookahead_func(&text[i..]) {
                 return Ok((i, Expression::Type(val)));
+            }
+        }
+        if let Ok((i, val)) = AdditiveExpression::try_parse(text) {
+            if lookahead_func(&text[i..]) {
+                return Ok((i, Expression::Logical(val)));
             }
         }
         Err(Box::new(ParseError::InvalidInput {
