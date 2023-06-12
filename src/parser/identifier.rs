@@ -1,5 +1,5 @@
-use std::unreachable;
 use serde::Serialize;
+use std::unreachable;
 
 use crate::parser::keywords::is_keyword;
 
@@ -66,12 +66,17 @@ impl<'a> Identifier<'a> {
 
             if end == start {
                 // Identifiers must have _SOME_ text
-                Err(Box::new(ParseError::InvalidInput{ pointer: start, ctx: parse_utils::gen_error_ctx(text, start, 5) }))
-            } else if is_keyword(&text[start..end]){
+                Err(Box::new(ParseError::InvalidInput {
+                    pointer: start,
+                    ctx: parse_utils::gen_error_ctx(text, start, 5),
+                }))
+            } else if is_keyword(&text[start..end]) {
                 // Identifers cannot be keywords
-                Err(Box::new(ParseError::InvalidInput{ pointer: start, ctx: parse_utils::gen_error_ctx(text, start, 5) }))
-            }
-            else {
+                Err(Box::new(ParseError::InvalidInput {
+                    pointer: start,
+                    ctx: parse_utils::gen_error_ctx(text, start, 5),
+                }))
+            } else {
                 Ok((
                     end,
                     Self {

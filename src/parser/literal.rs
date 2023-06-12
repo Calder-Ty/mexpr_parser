@@ -1,4 +1,7 @@
-use super::{parse_utils::{self, ParseError, ParseResult, followed_by_valid_seperator}, keywords};
+use super::{
+    keywords,
+    parse_utils::{self, followed_by_valid_seperator, ParseError, ParseResult},
+};
 use serde::Serialize;
 
 /// Literal:
@@ -45,7 +48,10 @@ impl<'a> Literal<'a> {
             return Ok(val);
         };
 
-        Err(Box::new(ParseError::InvalidInput{ pointer: 0, ctx: parse_utils::gen_error_ctx(text, 0, 5) }))
+        Err(Box::new(ParseError::InvalidInput {
+            pointer: 0,
+            ctx: parse_utils::gen_error_ctx(text, 0, 5),
+        }))
     }
 
     fn try_parse_logical(text: &str) -> ParseResult<Self> {
@@ -57,7 +63,10 @@ impl<'a> Literal<'a> {
         if text[text_start..].starts_with("false") {
             return Ok((text_start + 5, Self::Logical(false)));
         }
-        Err(Box::new(ParseError::InvalidInput{ pointer: text_start, ctx: parse_utils::gen_error_ctx(text, text_start, 5) }))
+        Err(Box::new(ParseError::InvalidInput {
+            pointer: text_start,
+            ctx: parse_utils::gen_error_ctx(text, text_start, 5),
+        }))
     }
 
     pub(crate) fn try_parse_text(text: &'a str) -> ParseResult<Self> {
@@ -103,11 +112,17 @@ impl<'a> Literal<'a> {
             }
             if in_escape {
                 // Uh OH
-                return Err(Box::new(ParseError::InvalidInput{ pointer: text_start, ctx: parse_utils::gen_error_ctx(text, text_start, 5) }));
+                return Err(Box::new(ParseError::InvalidInput {
+                    pointer: text_start,
+                    ctx: parse_utils::gen_error_ctx(text, text_start, 5),
+                }));
             }
             Ok((final_i + 1, Self::Text(&text[text_start..final_i])))
         } else {
-            Err(Box::new(ParseError::InvalidInput{ pointer: text_start, ctx: parse_utils::gen_error_ctx(text, text_start, 5) }))
+            Err(Box::new(ParseError::InvalidInput {
+                pointer: text_start,
+                ctx: parse_utils::gen_error_ctx(text, text_start, 5),
+            }))
         }
     }
 
@@ -121,12 +136,20 @@ impl<'a> Literal<'a> {
                 assert!(text.len() == text_start + 4);
                 Ok((text_start + 4, Literal::Null))
             } else {
-                Err(Box::new(ParseError::InvalidInput{ pointer: text_start, ctx: parse_utils::gen_error_ctx(text, text_start, 5) }))
+                Err(Box::new(ParseError::InvalidInput {
+                    pointer: text_start,
+                    ctx: parse_utils::gen_error_ctx(text, text_start, 5),
+                }))
             }
-        } else if text[text_start..].starts_with(keywords::NULL) && followed_by_valid_seperator(&text[text_start..], 4) {
+        } else if text[text_start..].starts_with(keywords::NULL)
+            && followed_by_valid_seperator(&text[text_start..], 4)
+        {
             Ok((text_start + 4, Literal::Null))
         } else {
-            Err(Box::new(ParseError::InvalidInput{ pointer: text_start, ctx: parse_utils::gen_error_ctx(text, text_start, 5) }))
+            Err(Box::new(ParseError::InvalidInput {
+                pointer: text_start,
+                ctx: parse_utils::gen_error_ctx(text, text_start, 5),
+            }))
         }
     }
 
@@ -174,7 +197,10 @@ impl<'a> Literal<'a> {
 
             if num_delta == 0 {
                 // Hex digit must have _a_ value
-                return Err(Box::new(ParseError::InvalidInput{ pointer: parse_pointer, ctx: parse_utils::gen_error_ctx(text, parse_pointer, 5) }));
+                return Err(Box::new(ParseError::InvalidInput {
+                    pointer: parse_pointer,
+                    ctx: parse_utils::gen_error_ctx(text, parse_pointer, 5),
+                }));
             }
             parse_pointer += num_delta;
 
@@ -218,7 +244,10 @@ impl<'a> Literal<'a> {
 
                 if !has_integer_part && num_end <= parse_pointer + 1 {
                     // This is just a '.' we can't make a number from that
-                    return Err(Box::new(ParseError::InvalidInput{ pointer: parse_pointer, ctx: parse_utils::gen_error_ctx(text, parse_pointer, 5) }));
+                    return Err(Box::new(ParseError::InvalidInput {
+                        pointer: parse_pointer,
+                        ctx: parse_utils::gen_error_ctx(text, parse_pointer, 5),
+                    }));
                 }
             }
             // handle Optional Exponent
@@ -243,7 +272,10 @@ impl<'a> Literal<'a> {
             }
             // Return parsed value:
             if parse_pointer == num_end {
-                Err(Box::new(ParseError::InvalidInput{ pointer: parse_pointer, ctx: parse_utils::gen_error_ctx(text, parse_pointer, 5) }))
+                Err(Box::new(ParseError::InvalidInput {
+                    pointer: parse_pointer,
+                    ctx: parse_utils::gen_error_ctx(text, parse_pointer, 5),
+                }))
             } else {
                 Ok((
                     num_end, // The Returned delta should be pointing at the final digit in the
@@ -286,7 +318,10 @@ impl<'a> Literal<'a> {
                 Self::Verbatim(&text[text_start + 3..text_start + final_i]),
             )) // ADD Three to skip the #!"
         } else {
-            Err(Box::new(ParseError::InvalidInput{ pointer: text_start, ctx: parse_utils::gen_error_ctx(text, text_start, 5) }))
+            Err(Box::new(ParseError::InvalidInput {
+                pointer: text_start,
+                ctx: parse_utils::gen_error_ctx(text, text_start, 5),
+            }))
         }
     }
 }

@@ -3,12 +3,12 @@ use self::{
     parse_utils::{skip_whitespace, ParseResult},
 };
 
+mod core;
 pub mod expressions;
 mod identifier;
 mod keywords;
-mod operators;
 mod literal;
-mod core;
+mod operators;
 
 pub fn try_parse(text: &str) -> ParseResult<Vec<LetExpression<'_>>> {
     let mut res = vec![];

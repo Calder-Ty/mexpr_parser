@@ -246,7 +246,11 @@ mod tests {
             )),
         },
     )]
-    fn test_additive_expression(#[case] input: &str, #[case] expected_delta: usize, #[case] expected: AdditiveExpression) {
+    fn test_additive_expression(
+        #[case] input: &str,
+        #[case] expected_delta: usize,
+        #[case] expected: AdditiveExpression,
+    ) {
         let (delta, val) = AdditiveExpression::try_parse(input).expect("Test Failed");
         assert_eq!(expected_delta, delta);
         assert_eq!(expected, val);

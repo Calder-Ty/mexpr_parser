@@ -158,7 +158,8 @@ impl<'a> Invocation<'a> {
                 parse_pointer += 1; // Add to account that we have moved one forward
                 break;
             }
-            let (delta, arg) = Expression::try_parse_with_lookahead(&text[parse_pointer..], arg_lookahead)?;
+            let (delta, arg) =
+                Expression::try_parse_with_lookahead(&text[parse_pointer..], arg_lookahead)?;
             args.push(arg);
             parse_pointer = parse_pointer
                 + delta
@@ -188,23 +189,18 @@ impl<'a> Invocation<'a> {
     }
 }
 
-
 /// Validates that the text is followed by a `,` or `)`
 fn arg_lookahead(text: &str) -> bool {
     let lookahead_pointer = skip_whitespace(text);
 
     if text[lookahead_pointer..].chars().next().unwrap_or(')') == ')' {
         true
-    }
-    else if text[lookahead_pointer..].chars().next().unwrap_or(',') == ',' {
+    } else if text[lookahead_pointer..].chars().next().unwrap_or(',') == ',' {
         true
-    }
-    else {
+    } else {
         false
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -238,7 +234,9 @@ mod tests {
         assert_eq!(invokation.args.len(), vars.len());
         for (i, arg) in invokation.args.iter().enumerate() {
             match arg {
-                Expression::Primary(PrimaryExpression::Literal(Literal::Text(v))) => assert_eq!(v, &vars[i]),
+                Expression::Primary(PrimaryExpression::Literal(Literal::Text(v))) => {
+                    assert_eq!(v, &vars[i])
+                }
                 _ => assert!(false),
             }
         }
@@ -379,14 +377,13 @@ mod tests {
                     })
                 }
                 Expression::Let(_) => assert!(false),
-                Expression::Type(
-                    crate::parser::expressions::Type::TypeStatement(actual_type)) => {
+                Expression::Type(crate::parser::expressions::Type::TypeStatement(actual_type)) => {
                     assert_matches!(exp_elements[i], Expression::Type(
                         crate::parser::expressions::Type::TypeStatement(TypeExpression{text: exp_text})) => {
                         assert_eq!(exp_text, actual_type.text)
 
                     })
-                },
+                }
                 Expression::Type(_) => {
                     assert!(false)
                 }

@@ -1,7 +1,7 @@
+mod function;
 mod logical;
 mod primary_expressions;
 mod record;
-mod function;
 
 use self::logical::AdditiveExpression;
 
