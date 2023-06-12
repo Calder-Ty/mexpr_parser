@@ -8,6 +8,7 @@ mod identifier;
 mod keywords;
 mod operators;
 mod literal;
+mod core;
 
 pub fn try_parse(text: &str) -> ParseResult<Vec<LetExpression<'_>>> {
     let mut res = vec![];
@@ -62,6 +63,13 @@ pub(crate) mod parse_utils {
         let next = text.chars().skip(len).next().unwrap_or('_');
         // Valid Separator
         next.is_whitespace() || next == ','
+    }
+
+    #[inline]
+    pub fn followed_by_whitespace(text: &str, len: usize) -> bool {
+        let next = text.chars().skip(len).next().unwrap_or('_');
+        // Valid Separator
+        next.is_whitespace()
     }
 
     #[cfg(test)]
