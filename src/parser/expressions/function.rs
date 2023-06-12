@@ -47,8 +47,6 @@ struct FunctionExpression<'a> {
     body: Expression<'a>,
 }
 
-
-
 #[derive(Debug, PartialEq, Serialize)]
 struct FuncParameter<'a> {
     name: Identifier<'a>,
@@ -76,10 +74,13 @@ impl<'a> TryParse<'a> for FuncParameter<'a> {
         let (delta, param_type) = Assertion::try_parse(&text[parse_pointer..])?;
         parse_pointer += delta;
 
-        Ok((parse_pointer, Self {
-            name: ident,
-            param_type: Some(param_type),
-        }))
+        Ok((
+            parse_pointer,
+            Self {
+                name: ident,
+                param_type: Some(param_type),
+            },
+        ))
     }
 }
 
@@ -158,6 +159,23 @@ mod tests {
         assert_eq!(exp_delta, delta);
     }
 
+    #[rstest]
+    #[case(
+        "   thing as nullable time, more stuff",
+        25,
+        FuncParameter {
+            name: Identifier::new("thing"), 
+            param_type: Some( Assertion { value: "time" }) 
+        }
+    )]
+    fn parse_func_parameter(
+        #[case] input: &str,
+        #[case] exp_delta: usize,
+        #[case] expected: FuncParameter,
+    ) {
+        let (delta, res) = FuncParameter::try_parse(input).expect("Unable to parse input");
 
-
+        assert_eq!(expected, res);
+        assert_eq!(exp_delta, delta);
+    }
 }
