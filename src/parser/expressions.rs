@@ -1,6 +1,7 @@
 mod logical;
 mod primary_expressions;
 mod record;
+mod function;
 
 use self::logical::AdditiveExpression;
 
@@ -12,7 +13,7 @@ use crate::ParseError;
 use primary_expressions::PrimaryExpression;
 use serde::Serialize;
 
-const PRIMITIVE_TYPES: [&str; 18] = [
+pub(crate) const PRIMITIVE_TYPES: [&str; 18] = [
     "any",
     "anynonnull",
     "binary",
