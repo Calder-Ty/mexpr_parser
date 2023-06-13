@@ -10,7 +10,7 @@ use crate::parser::parse_utils::{
     followed_by_valid_seperator, followed_by_whitespace, gen_error_ctx, skip_whitespace,
     ParseResult,
 };
-use crate::ParseError;
+use crate::{try_parse, ParseError};
 
 use super::{Expression, PRIMITIVE_TYPES};
 
@@ -42,9 +42,61 @@ use super::{Expression, PRIMITIVE_TYPES};
 ///     `optional` parameter
 #[derive(Debug, PartialEq, Serialize)]
 struct FunctionExpression<'a> {
-    parameters: Vec<FuncParameter<'a>>,
+    parameters: FunctionParameters<'a>,
     return_type: Option<&'a str>,
     body: Expression<'a>,
+}
+
+#[derive(Debug, PartialEq, Serialize)]
+struct FunctionParameters<'a> {
+    fixed: Vec<FuncParameter<'a>>,
+    optional: Vec<FuncParameter<'a>>,
+}
+
+impl<'a> TryParse<'a> for FunctionParameters<'a> {
+    fn try_parse(text: &'a str) -> ParseResult<Self>
+    where
+        Self: Sized,
+    {
+        let mut fixed = vec![];
+        let mut optional = vec![];
+
+        let mut parse_pointer = skip_whitespace(text);
+        // First fixed
+        loop {
+            match FuncParameter::try_parse(&text[parse_pointer..]) {
+                Ok((delta, param)) => {
+                    parse_pointer += delta;
+                    fixed.push(param);
+                }
+                Err(_) => break, // That's OK, we don't need fixed params
+            };
+
+            // Lookahead for ,
+            let lookahead_pointer = skip_whitespace(&text[parse_pointer..]);
+            if text[parse_pointer..].chars().next().unwrap_or(' ') != ',' {
+                // No comma, means there are no more parameters
+                break;
+            }
+            parse_pointer += lookahead_pointer + 1 // Plus one for the comma
+        }
+
+        // Then optional
+        loop {
+            parse_pointer += skip_whitespace(&text[parse_pointer..]);
+            // Check for optional keyword
+            if !(text[parse_pointer..].starts_with("optional") && followed_by_whitespace(&text[parse_pointer..], 8)) {
+                break; // No more optional parameters
+            };
+            parse_pointer += 8;
+
+            let (delta, param ) = FuncParameter::try_parse(&text[parse_pointer..])?;
+            parse_pointer += delta;
+            optional.push(param);
+        }
+
+        Ok((parse_pointer, Self { fixed, optional }))
+    }
 }
 
 #[derive(Debug, PartialEq, Serialize)]
@@ -60,8 +112,9 @@ impl<'a> TryParse<'a> for FuncParameter<'a> {
 
         parse_pointer += delta;
 
-        let lookahead_pointer = skip_whitespace(&text[parse_pointer..]);
-        if text[lookahead_pointer..].chars().next().unwrap_or(',') == ',' {
+        let lookahead_pointer = parse_pointer + skip_whitespace(&text[parse_pointer..]);
+        let next_val = text[lookahead_pointer..].chars().next().unwrap_or(',');
+        if [',', ')'].contains(&next_val) {
             return Ok((
                 parse_pointer,
                 Self {
@@ -174,6 +227,30 @@ mod tests {
         #[case] expected: FuncParameter,
     ) {
         let (delta, res) = FuncParameter::try_parse(input).expect("Unable to parse input");
+
+        assert_eq!(expected, res);
+        assert_eq!(exp_delta, delta);
+    }
+
+    #[rstest]
+    #[case(
+        "  thing as nullable time, optional baz)",
+        38,
+        FunctionParameters {
+            fixed: vec![ FuncParameter {
+            name: Identifier::new("thing"), 
+            param_type: Some( Assertion { value: "time" })
+            } ],
+            optional: vec![ FuncParameter {name:Identifier::new("baz"), param_type: None}]
+
+        }
+    )]
+    fn parse_func_parameters(
+        #[case] input: &str,
+        #[case] exp_delta: usize,
+        #[case] expected: FunctionParameters,
+    ) {
+        let (delta, res) = FunctionParameters::try_parse(input).expect("Unable to parse input");
 
         assert_eq!(expected, res);
         assert_eq!(exp_delta, delta);
