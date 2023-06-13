@@ -85,14 +85,23 @@ impl<'a> TryParse<'a> for FunctionParameters<'a> {
         loop {
             parse_pointer += skip_whitespace(&text[parse_pointer..]);
             // Check for optional keyword
-            if !(text[parse_pointer..].starts_with("optional") && followed_by_whitespace(&text[parse_pointer..], 8)) {
+            if !(text[parse_pointer..].starts_with("optional")
+                && followed_by_whitespace(&text[parse_pointer..], 8))
+            {
                 break; // No more optional parameters
             };
             parse_pointer += 8;
 
-            let (delta, param ) = FuncParameter::try_parse(&text[parse_pointer..])?;
+            let (delta, param) = FuncParameter::try_parse(&text[parse_pointer..])?;
             parse_pointer += delta;
             optional.push(param);
+            // Lookahead for ,
+            let lookahead_pointer = skip_whitespace(&text[parse_pointer..]);
+            if text[parse_pointer..].chars().next().unwrap_or(' ') != ',' {
+                // No comma, means there are no more parameters
+                break;
+            }
+            parse_pointer += lookahead_pointer + 1 // Plus one for the comma
         }
 
         Ok((parse_pointer, Self { fixed, optional }))
@@ -192,7 +201,7 @@ impl<'a> TryParse<'a> for Assertion<'a> {
 #[cfg(test)]
 mod tests {
 
-    use std::assert_eq;
+    use std::{assert_eq, vec};
 
     use super::*;
     use rstest::rstest;
@@ -234,6 +243,23 @@ mod tests {
 
     #[rstest]
     #[case(
+        "  thing, baz)",
+        12,
+        FunctionParameters {
+            fixed: vec![ FuncParameter {
+            name: Identifier::new("thing"),
+            param_type: None
+            },
+                FuncParameter {
+                    name:Identifier::new("baz"),
+                    param_type: None
+                }
+            ],
+            optional: vec![]
+
+        }
+    )]
+    #[case(
         "  thing as nullable time, optional baz)",
         38,
         FunctionParameters {
@@ -242,6 +268,27 @@ mod tests {
             param_type: Some( Assertion { value: "time" })
             } ],
             optional: vec![ FuncParameter {name:Identifier::new("baz"), param_type: None}]
+
+        }
+    )]
+    #[case(
+        "  optional foo, optional baz)",
+        28,
+        FunctionParameters {
+            fixed: vec![  ],
+            optional: vec![FuncParameter {
+            name: Identifier::new("foo"), 
+            param_type: None
+            }, FuncParameter {name:Identifier::new("baz"), param_type: None}]
+
+        }
+    )]
+    #[case(
+        ")",
+        0,
+        FunctionParameters {
+            fixed: vec![],
+            optional: vec![]
 
         }
     )]
