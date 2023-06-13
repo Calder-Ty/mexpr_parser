@@ -72,6 +72,11 @@ pub(crate) mod parse_utils {
         next.is_whitespace()
     }
 
+    #[inline]
+    pub fn next_char(text:&str) -> Option<char> {
+        text.chars().next()
+    }
+
     #[cfg(test)]
     mod tests {
         use super::gen_error_ctx;

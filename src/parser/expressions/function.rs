@@ -7,12 +7,12 @@ use serde::Serialize;
 use crate::parser::core::TryParse;
 use crate::parser::identifier::Identifier;
 use crate::parser::parse_utils::{
-    followed_by_valid_seperator, followed_by_whitespace, gen_error_ctx, skip_whitespace,
+    followed_by_valid_seperator, followed_by_whitespace, gen_error_ctx, next_char, skip_whitespace,
     ParseResult,
 };
 use crate::{try_parse, ParseError};
 
-use super::{Expression, PRIMITIVE_TYPES};
+use super::{primary_expressions::PrimaryExpression, Expression, PRIMITIVE_TYPES};
 
 /// function-expression:
 /// `(` parameter-listopt `)` return-type[opt] `=>` function-body
@@ -43,8 +43,67 @@ use super::{Expression, PRIMITIVE_TYPES};
 #[derive(Debug, PartialEq, Serialize)]
 struct FunctionExpression<'a> {
     parameters: FunctionParameters<'a>,
-    return_type: Option<&'a str>,
+    return_type: Option<Assertion<'a>>,
     body: Expression<'a>,
+}
+
+impl<'a> TryParse<'a> for FunctionExpression<'a> {
+    fn try_parse(text: &'a str) -> ParseResult<Self>
+    where
+        Self: Sized,
+    {
+        let mut parse_pointer = skip_whitespace(text);
+
+        if !(next_char(&text[parse_pointer..]).unwrap_or(' ') == '(') {
+            return Err(Box::new(ParseError::InvalidInput {
+                pointer: parse_pointer,
+                ctx: gen_error_ctx(text, parse_pointer, 5),
+            }));
+        };
+        parse_pointer += 1; // Skip `(`
+        let (delta, parameters) = FunctionParameters::try_parse(&text[parse_pointer..])?;
+        parse_pointer += delta;
+        parse_pointer += skip_whitespace(text);
+
+        if !(next_char(&text[parse_pointer..]).unwrap_or(' ') == ')') {
+            return Err(Box::new(ParseError::InvalidInput {
+                pointer: parse_pointer,
+                ctx: gen_error_ctx(text, parse_pointer, 5),
+            }));
+        }
+        parse_pointer += 1; // Skip `)`
+
+        let (delta, return_type) = match Assertion::try_parse(&text[parse_pointer..]) {
+            Ok((i, v)) => (i, Some(v)),
+            Err(_) => (0, None),
+        };
+
+        parse_pointer += delta;
+        parse_pointer += skip_whitespace(&text[parse_pointer..]);
+
+        if !(text[parse_pointer..].starts_with("=>")
+            && followed_by_whitespace(&text[parse_pointer..], 2))
+        {
+            return Err(Box::new(ParseError::InvalidInput {
+                pointer: parse_pointer,
+                ctx: gen_error_ctx(text, parse_pointer, 5),
+            }));
+        }
+
+        parse_pointer += 2; // Skip `=>`
+
+        let (delta, body) = Expression::try_parse(&text[parse_pointer..])?;
+        parse_pointer += delta;
+
+        Ok((
+            parse_pointer,
+            Self {
+                parameters,
+                return_type,
+                body,
+            },
+        ))
+    }
 }
 
 #[derive(Debug, PartialEq, Serialize)]
@@ -203,6 +262,8 @@ mod tests {
 
     use std::{assert_eq, vec};
 
+    use crate::parser::expressions::primary_expressions::Invocation;
+
     use super::*;
     use rstest::rstest;
 
@@ -298,6 +359,39 @@ mod tests {
         #[case] expected: FunctionParameters,
     ) {
         let (delta, res) = FunctionParameters::try_parse(input).expect("Unable to parse input");
+
+        assert_eq!(expected, res);
+        assert_eq!(exp_delta, delta);
+    }
+
+    #[rstest]
+    #[case(
+        "() => func.call()",
+        17,
+        FunctionExpression {
+            parameters: FunctionParameters {
+                fixed: vec![],
+                optional: vec![]
+            },
+            return_type: None,
+            body: Expression::Primary(
+                PrimaryExpression::Invoke(
+                    Box::new(
+                        Invocation::new(
+                            PrimaryExpression::Identifier(Identifier::new("func.call")),
+                            vec![]
+                        )
+                    )
+                )
+            ),
+        }
+    )]
+    fn parse_func_expression(
+        #[case] input: &str,
+        #[case] exp_delta: usize,
+        #[case] expected: FunctionExpression,
+    ) {
+        let (delta, res) = FunctionExpression::try_parse(input).expect("Unable to parse input");
 
         assert_eq!(expected, res);
         assert_eq!(exp_delta, delta);
