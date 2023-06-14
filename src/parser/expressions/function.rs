@@ -10,9 +10,9 @@ use crate::parser::parse_utils::{
     followed_by_valid_seperator, followed_by_whitespace, gen_error_ctx, next_char, skip_whitespace,
     ParseResult,
 };
-use crate::{try_parse, ParseError};
+use crate::ParseError;
 
-use super::{primary_expressions::PrimaryExpression, Expression, PRIMITIVE_TYPES};
+use super::{Expression, PRIMITIVE_TYPES};
 
 /// function-expression:
 /// `(` parameter-listopt `)` return-type[opt] `=>` function-body
@@ -54,6 +54,7 @@ impl<'a> TryParse<'a> for FunctionExpression<'a> {
     {
         let mut parse_pointer = skip_whitespace(text);
 
+        // Must start with open `(`
         if !(next_char(&text[parse_pointer..]).unwrap_or(' ') == '(') {
             return Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
@@ -63,8 +64,9 @@ impl<'a> TryParse<'a> for FunctionExpression<'a> {
         parse_pointer += 1; // Skip `(`
         let (delta, parameters) = FunctionParameters::try_parse(&text[parse_pointer..])?;
         parse_pointer += delta;
-        parse_pointer += skip_whitespace(text);
+        parse_pointer += skip_whitespace(&text[parse_pointer..]);
 
+        // Close Params with `)`
         if !(next_char(&text[parse_pointer..]).unwrap_or(' ') == ')') {
             return Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
@@ -81,6 +83,7 @@ impl<'a> TryParse<'a> for FunctionExpression<'a> {
         parse_pointer += delta;
         parse_pointer += skip_whitespace(&text[parse_pointer..]);
 
+        // Go to the body
         if !(text[parse_pointer..].starts_with("=>")
             && followed_by_whitespace(&text[parse_pointer..], 2))
         {
@@ -262,7 +265,7 @@ mod tests {
 
     use std::{assert_eq, vec};
 
-    use crate::parser::expressions::primary_expressions::Invocation;
+    use crate::parser::expressions::primary_expressions::{ PrimaryExpression, Invocation};
 
     use super::*;
     use rstest::rstest;
@@ -365,6 +368,32 @@ mod tests {
     }
 
     #[rstest]
+    #[case(
+        "(  optional foo, optional baz ) => func.call()",
+        46,
+        FunctionExpression {
+            parameters: FunctionParameters {
+            fixed: vec![  ],
+                optional: vec![FuncParameter {
+                    name: Identifier::new("foo"), 
+                    param_type: None
+                }, FuncParameter {name:Identifier::new("baz"), param_type: None}
+                ]
+
+        },
+            return_type: None,
+            body: Expression::Primary(
+                PrimaryExpression::Invoke(
+                    Box::new(
+                        Invocation::new(
+                            PrimaryExpression::Identifier(Identifier::new("func.call")),
+                            vec![]
+                        )
+                    )
+                )
+            ),
+        }
+    )]
     #[case(
         "() => func.call()",
         17,
