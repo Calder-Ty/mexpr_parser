@@ -20,3 +20,10 @@ pub const OPEN_BRACKET_STR: &str = "[";
 
 pub const CLOSE_BRACKET: char = ']';
 pub const CLOSE_BRACKET_STR: &str = "]";
+
+
+pub const OPEN_BRACE: char = '{';
+pub const OPEN_BRACE_STR: &str = "{";
+
+pub const CLOSE_BRACE: char = '}';
+pub const CLOSE_BRACE_STR: &str = "}";

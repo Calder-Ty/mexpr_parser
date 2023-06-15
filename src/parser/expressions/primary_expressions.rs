@@ -255,6 +255,50 @@ impl<'a> TryParse<'a> for FieldAccess<'a> {
     }
 }
 
+
+#[derive(Debug, PartialEq, Serialize)]
+struct ItemAccess<'a> {
+
+    expr: Box<PrimaryExpression<'a>>,
+    selector: Expression<'a>
+
+}
+
+impl<'a> TryParse<'a> for ItemAccess<'a> {
+
+    fn try_parse(text: &'a str) -> ParseResult<Self>
+        where
+            Self: Sized {
+        let mut parse_pointer = skip_whitespace(text);
+
+        let (delta, expr) = PrimaryExpression::try_parse(&text[parse_pointer..])?;
+        parse_pointer += delta;
+        parse_pointer += skip_whitespace(&text[parse_pointer..]);
+
+        if !(next_char(&text[parse_pointer..]).unwrap_or(' ') == operators::OPEN_BRACE) {
+            return Err(Box::new(ParseError::InvalidInput {
+                pointer: parse_pointer,
+                ctx: gen_error_ctx(text, parse_pointer, 5),
+            }));
+        };
+        parse_pointer += 1; // Advance past the `{`
+        //
+        let (delta, selector) = Expression::try_parse(&text[parse_pointer..])?;
+        parse_pointer += delta;
+        let lookahead_pointer = skip_whitespace(&text[parse_pointer..]);
+
+        if !(next_char(&text[parse_pointer + lookahead_pointer..]).unwrap_or(' ') == operators::CLOSE_BRACE) {
+            return Err(Box::new(ParseError::InvalidInput {
+                pointer: parse_pointer,
+                ctx: gen_error_ctx(text, parse_pointer, 5),
+            }));
+        };
+        parse_pointer += lookahead_pointer + 1; // Advance past the `}`
+        Ok((parse_pointer, Self { expr: Box::new(expr), selector }))
+    }
+}
+
+
 #[cfg(test)]
 mod tests {
     use std::{assert_eq, todo};
@@ -439,5 +483,40 @@ mod tests {
 
         assert_eq!(exp_delta, delta);
         assert_eq!(exp_field, field);
+    }
+
+    #[rstest]
+    #[case(
+        r#" text{  value }"#, 
+        15,
+        ItemAccess {
+            expr: Box::new(PrimaryExpression::Identifier(Identifier::new("text"))),
+            selector: Expression::Primary(PrimaryExpression::Identifier(Identifier::new("value"))) }
+    )
+    ]
+    fn test_item_access_expression(
+        #[case] input_text: &str,
+        #[case] exp_delta: usize,
+        #[case] exp_field: ItemAccess,
+    ) {
+        let (delta, field) = ItemAccess::try_parse(input_text)
+            .expect(format!("Failed to parse test input '{}'", &input_text).as_str());
+
+        assert_eq!(exp_delta, delta);
+        assert_eq!(exp_field, field);
+    }
+
+
+    #[rstest]
+    #[case(r#" { value }"#,)
+    ]
+    fn test_item_access_fails(
+        #[case] input_text: &str,
+    ) {
+        let res = ItemAccess::try_parse(input_text);
+        match res {
+            Ok(_) => assert!(false),
+            Err(_) => assert!(true),
+        }
     }
 }
