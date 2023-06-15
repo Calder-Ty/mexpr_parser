@@ -1,11 +1,13 @@
+mod each;
 mod function;
 mod logical;
 mod primary_expressions;
 mod record;
 
-use self::logical::AdditiveExpression;
+use self::{each::EachExpression, logical::AdditiveExpression};
 
 use super::{
+    core::TryParse,
     identifier::Identifier,
     parse_utils::{self, gen_error_ctx, skip_whitespace, ParseResult},
 };
@@ -40,6 +42,7 @@ pub(crate) enum Expression<'a> {
     Primary(PrimaryExpression<'a>),
     Type(Type<'a>),
     Logical(AdditiveExpression<'a>),
+    Each(Box<EachExpression<'a>>),
 }
 
 impl<'a> Expression<'a> {
@@ -52,6 +55,9 @@ impl<'a> Expression<'a> {
         }
         if let Ok((i, val)) = Type::try_parse(text) {
             return Ok((i, Expression::Type(val)));
+        }
+        if let Ok((i, val)) = EachExpression::try_parse(text) {
+            return Ok((i, Expression::Each(Box::new(val))));
         }
         if let Ok((i, val)) = AdditiveExpression::try_parse(text) {
             return Ok((i, Expression::Logical(val)));
@@ -79,6 +85,11 @@ impl<'a> Expression<'a> {
         if let Ok((i, val)) = Type::try_parse(text) {
             if lookahead_func(&text[i..]) {
                 return Ok((i, Expression::Type(val)));
+            }
+        }
+        if let Ok((i, val)) = EachExpression::try_parse(text) {
+            if lookahead_func(&text[i..]) {
+                return Ok((i, Expression::Each(Box::new(val))));
             }
         }
         if let Ok((i, val)) = AdditiveExpression::try_parse(text) {
@@ -162,7 +173,7 @@ impl<'a> LetExpression<'a> {
 #[derive(Debug, Serialize, PartialEq)]
 struct VariableAssignment<'a> {
     name: Identifier<'a>,
-    expr: PrimaryExpression<'a>,
+    expr: Expression<'a>,
 }
 
 impl<'a> VariableAssignment<'a> {
@@ -180,7 +191,7 @@ impl<'a> VariableAssignment<'a> {
 
         parse_pointer += sep_delta;
 
-        let (delta, expr) = PrimaryExpression::try_parse(&text[parse_pointer..])?;
+        let (delta, expr) = Expression::try_parse(&text[parse_pointer..])?;
         parse_pointer += delta;
 
         Ok((parse_pointer, Self { name, expr }))
@@ -191,6 +202,7 @@ impl<'a> VariableAssignment<'a> {
 pub(crate) enum Type<'a> {
     TypeStatement(TypeExpression<'a>),
     Primary(PrimaryExpression<'a>),
+    Record(RecordTypeExpression<'a>),
 }
 
 impl<'a> Type<'a> {
@@ -271,7 +283,7 @@ mod tests {
     vec![
         VariableAssignment {
             name:Identifier::new("var"),
-            expr:PrimaryExpression::Literal(Literal::Text("Not a variable"))
+            expr:Expression::Primary( PrimaryExpression::Literal(Literal::Text("Not a variable")))
         }
     ]
 )]
@@ -283,11 +295,11 @@ mod tests {
     vec![
         VariableAssignment {
             name:Identifier::new("var"), 
-            expr:PrimaryExpression::Literal(Literal::Text("Not a variable"))
+            expr:Expression::Primary( PrimaryExpression::Literal(Literal::Text("Not a variable")))
         },
         VariableAssignment {
             name:Identifier::new("var2"), 
-            expr:PrimaryExpression::Literal(Literal::Number(NumberType::Int(0xff)))
+            expr:Expression::Primary( PrimaryExpression::Literal(Literal::Number(NumberType::Int(0xff))))
         }
     ]
 )]

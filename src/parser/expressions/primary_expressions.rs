@@ -301,6 +301,7 @@ mod tests {
 
         for (i, arg) in invokation.args.iter().enumerate() {
             match arg {
+                Expression::Each(_) => todo!(),
                 Expression::Primary(PrimaryExpression::List(_)) => todo!(),
                 Expression::Primary(PrimaryExpression::Record(_)) => todo!(),
                 Expression::Primary(PrimaryExpression::Identifier(ident)) => {
@@ -363,6 +364,7 @@ mod tests {
 
         for (i, arg) in list.elements.iter().enumerate() {
             match arg {
+                Expression::Each(_) => todo!(),
                 Expression::Primary(PrimaryExpression::Record(_)) => todo!(),
                 Expression::Primary(PrimaryExpression::List(_)) => todo!(),
                 Expression::Primary(PrimaryExpression::Identifier(ident)) => {

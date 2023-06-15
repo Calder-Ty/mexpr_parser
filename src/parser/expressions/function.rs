@@ -41,10 +41,25 @@ use super::{Expression, PRIMITIVE_TYPES};
 /// optional-parameter:
 ///     `optional` parameter
 #[derive(Debug, PartialEq, Serialize)]
-struct FunctionExpression<'a> {
+pub(crate) struct FunctionExpression<'a> {
     parameters: FunctionParameters<'a>,
     return_type: Option<Assertion<'a>>,
     body: Expression<'a>,
+}
+
+impl<'a> FunctionExpression<'a> {
+    #[cfg(test)]
+    pub(crate) fn new(
+        parameters: FunctionParameters<'a>,
+        return_type: Option<Assertion<'a>>,
+        body: Expression<'a>,
+    ) -> Self {
+        Self {
+            parameters,
+            return_type,
+            body,
+        }
+    }
 }
 
 impl<'a> TryParse<'a> for FunctionExpression<'a> {
@@ -110,9 +125,16 @@ impl<'a> TryParse<'a> for FunctionExpression<'a> {
 }
 
 #[derive(Debug, PartialEq, Serialize)]
-struct FunctionParameters<'a> {
+pub(crate) struct FunctionParameters<'a> {
     fixed: Vec<FuncParameter<'a>>,
     optional: Vec<FuncParameter<'a>>,
+}
+
+impl<'a> FunctionParameters<'a> {
+    #[cfg(test)]
+    pub(crate) fn new(fixed: Vec<FuncParameter<'a>>, optional: Vec<FuncParameter<'a>>) -> Self {
+        Self { fixed, optional }
+    }
 }
 
 impl<'a> TryParse<'a> for FunctionParameters<'a> {
@@ -171,9 +193,16 @@ impl<'a> TryParse<'a> for FunctionParameters<'a> {
 }
 
 #[derive(Debug, PartialEq, Serialize)]
-struct FuncParameter<'a> {
+pub(crate) struct FuncParameter<'a> {
     name: Identifier<'a>,
     param_type: Option<Assertion<'a>>,
+}
+
+impl<'a> FuncParameter<'a> {
+    #[cfg(test)]
+    pub(crate) fn new(name: Identifier<'a>, param_type: Option<Assertion<'a>>) -> Self {
+        Self { name, param_type }
+    }
 }
 
 impl<'a> TryParse<'a> for FuncParameter<'a> {
@@ -209,8 +238,15 @@ impl<'a> TryParse<'a> for FuncParameter<'a> {
 }
 
 #[derive(Debug, PartialEq, Serialize)]
-struct Assertion<'a> {
+pub(crate) struct Assertion<'a> {
     value: &'a str,
+}
+
+impl<'a> Assertion<'a> {
+    #[cfg(test)]
+    pub(crate) fn new(value: &'a str) -> Self {
+        Self { value }
+    }
 }
 
 impl<'a> TryParse<'a> for Assertion<'a> {
@@ -265,7 +301,7 @@ mod tests {
 
     use std::{assert_eq, vec};
 
-    use crate::parser::expressions::primary_expressions::{ PrimaryExpression, Invocation};
+    use crate::parser::expressions::primary_expressions::{Invocation, PrimaryExpression};
 
     use super::*;
     use rstest::rstest;
