@@ -81,7 +81,7 @@ impl<'a> ListExpression<'a> {
     pub fn try_parse(text: &'a str) -> ParseResult<Self> {
         let mut parse_pointer = skip_whitespace(text);
 
-        if text[parse_pointer..].chars().next().unwrap_or(' ') != '{' {
+        if next_char(&text[parse_pointer..]).unwrap_or(' ') != '{' {
             return Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
                 ctx: parse_utils::gen_error_ctx(text, parse_pointer, 5),

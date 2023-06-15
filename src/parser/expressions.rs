@@ -10,12 +10,12 @@ use self::{each::EachExpression, logical::AdditiveExpression, type_expressions::
 use super::{
     core::TryParse,
     identifier::Identifier,
+    keywords, operators,
     parse_utils::{self, gen_error_ctx, skip_whitespace, ParseResult},
 };
 use crate::ParseError;
 use primary_expressions::PrimaryExpression;
 use serde::Serialize;
-
 
 #[derive(Debug, Serialize, PartialEq)]
 pub(crate) enum Expression<'a> {
@@ -172,13 +172,21 @@ impl<'a> VariableAssignment<'a> {
 
         parse_pointer += sep_delta;
 
-        let (delta, expr) = Expression::try_parse(&text[parse_pointer..])?;
+        let (delta, expr) =
+            Expression::try_parse_with_lookahead(&text[parse_pointer..], var_assignment_lookahead)?;
         parse_pointer += delta;
 
         Ok((parse_pointer, Self { name, expr }))
     }
 }
 
+/// Makes sure that the value given back is a FULL assignment value
+fn var_assignment_lookahead(text: &str) -> bool {
+    let lookahead_pointer = skip_whitespace(text);
+
+    text[lookahead_pointer..].starts_with(operators::COMMA_STR)
+        || text[lookahead_pointer..].starts_with(keywords::IN)
+}
 
 #[cfg(test)]
 mod tests {
@@ -236,20 +244,20 @@ mod tests {
 
     #[rstest]
     #[case(
-        r#"    var = "Not a variable""#,
+        r#"    var = "Not a variable" in thing"#,
         "var",
         PrimaryExpression::Literal(Literal::Text("Not a variable")),
         26
     )]
     #[case(
         r#"
-var = "Not a variable""#,
+var = "Not a variable" in thing"#,
         "var",
         PrimaryExpression::Literal(Literal::Text("Not a variable")),
         23
     )]
     #[case(
-    r#"       var =          This("Not a variable")"#,
+    r#"       var =          This("Not a variable") in thing"#,
     "var",
     PrimaryExpression::Invoke(Box::new(primary_expressions::Invocation::new(
         PrimaryExpression::Identifier(Identifier::new("This")),
@@ -258,7 +266,7 @@ var = "Not a variable""#,
     44
 )]
     #[case(
-    r#"       #"var" =          This.that("Not a variable")"#,
+    r#"       #"var" =          This.that("Not a variable") in thing"#,
     "var",
     PrimaryExpression::Invoke(Box::new(primary_expressions::Invocation::new(
         PrimaryExpression::Identifier(Identifier::new("This.that")),
