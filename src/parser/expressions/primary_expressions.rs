@@ -2,10 +2,12 @@ use std::eprintln;
 
 use crate::{
     parser::{
+        core::TryParse,
         identifier::Identifier,
         keywords::is_func_keyword,
         literal::Literal,
-        parse_utils::{self, gen_error_ctx, skip_whitespace, ParseResult},
+        operators,
+        parse_utils::{self, gen_error_ctx, next_char, skip_whitespace, ParseResult},
     },
     ParseError,
 };
@@ -20,7 +22,7 @@ use serde::Serialize;
 // x       identifier-expression
 //       section-access-expression
 //       parenthesized-expression
-//       field-access-expression
+// x      field-access-expression
 //       item-access-expression
 // x      invoke-expression
 //       not-implemented-expression
@@ -39,6 +41,7 @@ pub(crate) enum PrimaryExpression<'a> {
     Invoke(Box<Invocation<'a>>),
     Literal(Literal<'a>),
     Record(Record<'a>),
+    FieldAccess(FieldAccess<'a>),
 }
 
 impl<'a> PrimaryExpression<'a> {
@@ -58,6 +61,9 @@ impl<'a> PrimaryExpression<'a> {
         }
         if let Ok((i, val)) = Identifier::try_parse(text) {
             return Ok((i, PrimaryExpression::Identifier(val)));
+        }
+        if let Ok((i, val)) = FieldAccess::try_parse(text) {
+            return Ok((i, PrimaryExpression::FieldAccess(val)));
         }
         Err(ParseError::InvalidInput {
             pointer: 0,
@@ -202,15 +208,62 @@ fn arg_lookahead(text: &str) -> bool {
     }
 }
 
+#[derive(Debug, PartialEq, Serialize)]
+pub(crate) struct FieldAccess<'a> {
+    // The Grammar posted by Microsoft for Field Access Expressions has it start with
+    // a Primary Expression. However, this recursive relationship is dangerous, as there
+    // is a very legitimate opportunity that we would be stuck in a loop because the pointer will
+    // never progress, and keep trying to find an expression.
+    //
+    // Since FieldAccess expressions can be done alone (something mentioned in the docs, but
+    // not allowed by the Grammar). We are going to just assume that a Primary Expression preceeds
+    // field Access, because it won't always be the case anyway.
+    // https://learn.microsoft.com/en-us/powerquery-m/m-spec-functions#simplified-declarations
+    selector: Identifier<'a>,
+}
+
+impl<'a> TryParse<'a> for FieldAccess<'a> {
+    fn try_parse(text: &'a str) -> ParseResult<Self>
+    where
+        Self: Sized,
+    {
+        let mut parse_pointer = skip_whitespace(text);
+
+        if !(next_char(&text[parse_pointer..]).unwrap_or(' ') == operators::OPEN_BRACKET) {
+            return Err(Box::new(ParseError::InvalidInput {
+                pointer: parse_pointer,
+                ctx: gen_error_ctx(text, parse_pointer, 5),
+            }));
+        };
+        parse_pointer += 1; // Advance past the `[`
+
+        let (delta, selector) = Identifier::try_parse(&text[parse_pointer..])?;
+
+        parse_pointer += delta; // Advance past the `]`
+        parse_pointer += skip_whitespace(&text[parse_pointer..]);
+
+        if !(next_char(&text[parse_pointer..]).unwrap_or(' ') == operators::CLOSE_BRACKET) {
+            return Err(Box::new(ParseError::InvalidInput {
+                pointer: parse_pointer,
+                ctx: gen_error_ctx(text, parse_pointer, 5),
+            }));
+        };
+
+        parse_pointer += 1;
+
+        Ok((parse_pointer, Self { selector }))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::{assert_eq, todo};
 
     use super::*;
     use crate::parser::{
+        expressions::type_expressions::TypeExpression,
         identifier::Identifier,
         literal::{Literal, NumberType},
-        expressions::type_expressions::TypeExpression
     };
     use assert_matches::assert_matches;
     use rstest::rstest;
@@ -303,6 +356,7 @@ mod tests {
             match arg {
                 Expression::Each(_) => todo!(),
                 Expression::Primary(PrimaryExpression::List(_)) => todo!(),
+                Expression::Primary(PrimaryExpression::FieldAccess(_)) => todo!(),
                 Expression::Primary(PrimaryExpression::Record(_)) => todo!(),
                 Expression::Primary(PrimaryExpression::Identifier(ident)) => {
                     assert_matches!(&vars[i], PrimaryExpression::Identifier(expected) => {
@@ -366,5 +420,24 @@ mod tests {
 
         assert_eq!(exp_delta, delta);
         assert_eq!(exp_elements, list);
+    }
+
+    #[rstest]
+    #[case(
+        r#" [  text ]"#, 
+        10,
+        FieldAccess { selector: Identifier::new("text") } 
+    )
+    ]
+    fn test_field_access_expression(
+        #[case] input_text: &str,
+        #[case] exp_delta: usize,
+        #[case] exp_field: FieldAccess,
+    ) {
+        let (delta, field) = FieldAccess::try_parse(input_text)
+            .expect(format!("Failed to parse test input '{}'", &input_text).as_str());
+
+        assert_eq!(exp_delta, delta);
+        assert_eq!(exp_field, field);
     }
 }
