@@ -1,4 +1,4 @@
-use std::{ops::Mul, todo};
+use std::todo;
 
 use serde::Serialize;
 
@@ -10,7 +10,7 @@ use crate::{
     ParseError,
 };
 
-use super::{Type, TypeExpression};
+use super::type_expressions::Type;
 
 /// logical-or-expression:
 ///       logical-and-expression

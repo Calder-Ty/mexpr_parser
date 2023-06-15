@@ -12,7 +12,7 @@ use crate::parser::parse_utils::{
 };
 use crate::ParseError;
 
-use super::{Expression, PRIMITIVE_TYPES};
+use super::{Expression, type_expressions::PRIMITIVE_TYPES};
 
 /// function-expression:
 /// `(` parameter-listopt `)` return-type[opt] `=>` function-body

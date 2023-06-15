@@ -208,9 +208,9 @@ mod tests {
 
     use super::*;
     use crate::parser::{
-        expressions::TypeExpression,
         identifier::Identifier,
         literal::{Literal, NumberType},
+        expressions::type_expressions::TypeExpression
     };
     use assert_matches::assert_matches;
     use rstest::rstest;
@@ -334,65 +334,37 @@ mod tests {
     #[rstest]
     #[case(
     r#"{" Not a 235.E10 variable", false, 1234.5, 0x25}"#, 
-    vec![
-        Expression::Primary(PrimaryExpression::Literal(Literal::Text(" Not a 235.E10 variable"))),
-        Expression::Primary(PrimaryExpression::Literal(Literal::Logical(false))),
-        Expression::Primary(PrimaryExpression::Literal(Literal::Number(NumberType::Float(1234.5)))),
-        Expression::Primary(PrimaryExpression::Literal(Literal::Number(NumberType::Int(0x25)))),
-    ],
+        ListExpression { elements:
+            vec![
+                Expression::Primary(PrimaryExpression::Literal(Literal::Text(" Not a 235.E10 variable"))),
+                Expression::Primary(PrimaryExpression::Literal(Literal::Logical(false))),
+                Expression::Primary(PrimaryExpression::Literal(Literal::Number(NumberType::Float(1234.5)))),
+                Expression::Primary(PrimaryExpression::Literal(Literal::Number(NumberType::Int(0x25)))),
+            ]
+        },
 48)
 ]
     #[case(
     r#"{" Not a 235.E10 variable", false, 1234.5, type datetime }"#, 
-    vec![
-        Expression::Primary(PrimaryExpression::Literal(Literal::Text(" Not a 235.E10 variable"))),
-        Expression::Primary(PrimaryExpression::Literal(Literal::Logical(false))),
-        Expression::Primary(PrimaryExpression::Literal(Literal::Number(NumberType::Float(1234.5)))),
-        Expression::Type(crate::parser::expressions::Type::TypeStatement( TypeExpression { text: "type datetime"} ))
-    ],
+        ListExpression { elements:
+            vec![
+                Expression::Primary(PrimaryExpression::Literal(Literal::Text(" Not a 235.E10 variable"))),
+                Expression::Primary(PrimaryExpression::Literal(Literal::Logical(false))),
+                Expression::Primary(PrimaryExpression::Literal(Literal::Number(NumberType::Float(1234.5)))),
+                Expression::Type(crate::parser::expressions::Type::TypeStatement( TypeExpression::new("type datetime") ))
+            ]
+        },
 58)
 ]
     fn test_list_expression_parser(
         #[case] input_text: &str,
-        #[case] exp_elements: Vec<Expression>,
+        #[case] exp_elements: ListExpression,
         #[case] exp_delta: usize,
     ) {
         let (delta, list) = ListExpression::try_parse(input_text)
             .expect(format!("failed to parse test input '{}'", &input_text).as_str());
 
         assert_eq!(exp_delta, delta);
-
-        for (i, arg) in list.elements.iter().enumerate() {
-            match arg {
-                Expression::Each(_) => todo!(),
-                Expression::Primary(PrimaryExpression::Record(_)) => todo!(),
-                Expression::Primary(PrimaryExpression::List(_)) => todo!(),
-                Expression::Primary(PrimaryExpression::Identifier(ident)) => {
-                    assert_matches!(&exp_elements[i], Expression::Primary(PrimaryExpression::Identifier(expected)) => {
-                        assert_eq!(ident.text(), expected.text())
-                    })
-                }
-                Expression::Primary(PrimaryExpression::Invoke(_invoke)) => todo!(),
-                Expression::Primary(PrimaryExpression::Literal(_literal)) => {
-                    assert_matches!(&exp_elements[i], Expression::Primary(PrimaryExpression::Literal(expected)) => {
-                        assert_matches!(expected, _literal)
-                    })
-                }
-                Expression::Let(_) => assert!(false),
-                Expression::Type(crate::parser::expressions::Type::TypeStatement(actual_type)) => {
-                    assert_matches!(exp_elements[i], Expression::Type(
-                        crate::parser::expressions::Type::TypeStatement(TypeExpression{text: exp_text})) => {
-                        assert_eq!(exp_text, actual_type.text)
-
-                    })
-                }
-                Expression::Type(_) => {
-                    assert!(false)
-                }
-                Expression::Logical(_) => {
-                    todo!()
-                }
-            }
-        }
+        assert_eq!(exp_elements, list);
     }
 }
