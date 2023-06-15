@@ -32,7 +32,6 @@ pub(crate) const PRIMITIVE_TYPES: [&str; 18] = [
 pub(crate) enum Type<'a> {
     TypeStatement(TypeExpression<'a>),
     Primary(PrimaryExpression<'a>),
-    // Record(RecordTypeExpression<'a>),
 }
 
 impl<'a> Type<'a> {
