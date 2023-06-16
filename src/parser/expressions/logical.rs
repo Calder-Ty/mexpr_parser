@@ -4,8 +4,12 @@ use serde::Serialize;
 
 use crate::{
     parser::{
-        keywords, operators,
-        parse_utils::{followed_by_valid_seperator, gen_error_ctx, skip_whitespace, ParseResult},
+        keywords,
+        operators::{self, OPEN_BRACE_STR},
+        parse_utils::{
+            followed_by_valid_seperator, followed_by_whitespace, gen_error_ctx, next_char,
+            skip_whitespace, ParseResult,
+        },
     },
     ParseError,
 };
@@ -201,7 +205,34 @@ impl<'a> UnaryExpression<'a> {
 
 impl<'a> Unary<'a> {
     pub fn try_parse(text: &'a str) -> ParseResult<Self> {
-        todo!()
+        let mut parse_pointer = skip_whitespace(text);
+        let (delta, operator) = match next_char(&text[parse_pointer..]) {
+            Some(operators::MINUS) => (1, operators::MINUS_STR),
+            Some(operators::PLUS) => (1, operators::PLUS_STR),
+            Some(_) => {
+                if text[parse_pointer..].starts_with(keywords::NOT)
+                    && followed_by_whitespace(&text[parse_pointer..], keywords::NOT.len())
+                {
+                    (keywords::NOT.len(), keywords::NOT)
+                } else {
+                    return Err(Box::new(ParseError::InvalidInput {
+                        pointer: parse_pointer,
+                        ctx: gen_error_ctx(text, parse_pointer, 5),
+                    }));
+                }
+            }
+            None => {
+                return Err(Box::new(ParseError::InvalidInput {
+                    pointer: parse_pointer,
+                    ctx: gen_error_ctx(text, parse_pointer, 5),
+                }));
+            }
+        };
+        parse_pointer += delta;
+
+        let (delta, expr) = UnaryExpression::try_parse(&text[parse_pointer..])?;
+        parse_pointer += delta;
+        Ok((parse_pointer, Self { operator, expr: Box::new(expr)}))
     }
 }
 

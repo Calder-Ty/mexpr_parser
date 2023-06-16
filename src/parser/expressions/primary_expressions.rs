@@ -51,6 +51,9 @@ impl<'a> PrimaryExpression<'a> {
         if let Ok((i, val)) = ItemAccess::try_parse(text) {
             return Ok((i, PrimaryExpression::ItemAccess(Box::new(val))));
         }
+        if let Ok((i, val)) = FieldAccess::try_parse(text) {
+            return Ok((i, PrimaryExpression::FieldAccess(Box::new(val))));
+        }
         if let Ok((i, val)) = Literal::try_parse(text) {
             return Ok((i, PrimaryExpression::Literal(val)));
         }
@@ -65,9 +68,6 @@ impl<'a> PrimaryExpression<'a> {
         }
         if let Ok((i, val)) = Identifier::try_parse(text) {
             return Ok((i, PrimaryExpression::Identifier(val)));
-        }
-        if let Ok((i, val)) = FieldAccess::try_parse(text) {
-            return Ok((i, PrimaryExpression::FieldAccess(Box::new(val))));
         }
         Err(ParseError::InvalidInput {
             pointer: 0,
@@ -335,7 +335,17 @@ impl<'a> TryParse<'a> for ItemAccess<'a> {
                 ctx: gen_error_ctx(text, parse_pointer, 5),
             }));
         };
+
         parse_pointer += lookahead_pointer + 1; // Advance past the `}`
+
+        // HACK: Do A lookahead to make sure that we haven't just parsed a part of an FieldAccess
+        // Expression
+        if next_char(&text[parse_pointer..]).unwrap_or(' ') == operators::OPEN_BRACKET {
+            return Err(Box::new(ParseError::InvalidInput {
+                pointer: parse_pointer,
+                ctx: gen_error_ctx(text, parse_pointer, 5),
+            }));
+        };
         Ok((
             parse_pointer,
             Self {
