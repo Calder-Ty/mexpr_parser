@@ -42,11 +42,15 @@ pub(crate) enum PrimaryExpression<'a> {
     Literal(Literal<'a>),
     Record(Record<'a>),
     FieldAccess(FieldAccess<'a>),
+    ItemAccess(Box<ItemAccess<'a>>),
 }
 
 impl<'a> PrimaryExpression<'a> {
     // parses the stuff and returns an instance of itself
     pub fn try_parse(text: &'a str) -> Result<(usize, Self), ParseError> {
+        if let Ok((i, val)) = ItemAccess::try_parse(text) {
+            return Ok((i, PrimaryExpression::ItemAccess(Box::new(val))));
+        }
         if let Ok((i, val)) = Literal::try_parse(text) {
             return Ok((i, PrimaryExpression::Literal(val)));
         }
@@ -257,9 +261,9 @@ impl<'a> TryParse<'a> for FieldAccess<'a> {
 
 
 #[derive(Debug, PartialEq, Serialize)]
-struct ItemAccess<'a> {
+pub(crate) struct ItemAccess<'a> {
 
-    expr: Box<PrimaryExpression<'a>>,
+    expr: PrimaryExpression<'a>,
     selector: Expression<'a>
 
 }
@@ -269,9 +273,24 @@ impl<'a> TryParse<'a> for ItemAccess<'a> {
     fn try_parse(text: &'a str) -> ParseResult<Self>
         where
             Self: Sized {
+
         let mut parse_pointer = skip_whitespace(text);
 
-        let (delta, expr) = PrimaryExpression::try_parse(&text[parse_pointer..])?;
+        // For Item Access to be valid, There _has_ to be an '{' somewhere near.
+        // To ensure that we are not in a situation where we recurse forever
+        // and overflow the stack, we are going to make sure that the primary Expression we 
+        // parse is limited to the text immediately preceding the next `{`
+        //
+        // If There is no `{`, we will fail, as the current expression we are parsing cannot
+        // possibly be an Item Access.
+        if !(&text[parse_pointer..].contains(operators::OPEN_BRACE_STR)) {
+            return Err(Box::new(ParseError::InvalidInput {
+                pointer: parse_pointer,
+                ctx: gen_error_ctx(text, parse_pointer, 5),
+            }));
+        }
+        let primary_end = text.chars().take_while(|c| *c != operators::OPEN_BRACE).count();
+        let (delta, expr) = PrimaryExpression::try_parse(&text[parse_pointer..primary_end])?;
         parse_pointer += delta;
         parse_pointer += skip_whitespace(&text[parse_pointer..]);
 
@@ -294,7 +313,7 @@ impl<'a> TryParse<'a> for ItemAccess<'a> {
             }));
         };
         parse_pointer += lookahead_pointer + 1; // Advance past the `}`
-        Ok((parse_pointer, Self { expr: Box::new(expr), selector }))
+        Ok((parse_pointer, Self { expr: expr, selector }))
     }
 }
 
@@ -400,6 +419,7 @@ mod tests {
             match arg {
                 Expression::Each(_) => todo!(),
                 Expression::Primary(PrimaryExpression::List(_)) => todo!(),
+                Expression::Primary(PrimaryExpression::ItemAccess(_)) => todo!(),
                 Expression::Primary(PrimaryExpression::FieldAccess(_)) => todo!(),
                 Expression::Primary(PrimaryExpression::Record(_)) => todo!(),
                 Expression::Primary(PrimaryExpression::Identifier(ident)) => {
@@ -487,10 +507,22 @@ mod tests {
 
     #[rstest]
     #[case(
+        r#" text{  inner{value} }"#, 
+        22,
+        ItemAccess {
+            expr: PrimaryExpression::Identifier(Identifier::new("text")),
+            selector: Expression::Primary(PrimaryExpression::ItemAccess( Box::new(ItemAccess {
+                expr: PrimaryExpression::Identifier(Identifier::new("inner")),
+                selector: Expression::Primary(PrimaryExpression::Identifier(Identifier::new("value")))
+            }
+            )))}
+    )
+    ]
+    #[case(
         r#" text{  value }"#, 
         15,
         ItemAccess {
-            expr: Box::new(PrimaryExpression::Identifier(Identifier::new("text"))),
+            expr: PrimaryExpression::Identifier(Identifier::new("text")),
             selector: Expression::Primary(PrimaryExpression::Identifier(Identifier::new("value"))) }
     )
     ]
