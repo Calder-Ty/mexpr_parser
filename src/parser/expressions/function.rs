@@ -62,7 +62,7 @@ impl<'a> FunctionExpression<'a> {
     }
 }
 
-impl<'a> TryParse<'a> for FunctionExpression<'a> {
+impl<'a> TryParse<'a, Self> for FunctionExpression<'a> {
     fn try_parse(text: &'a str) -> ParseResult<Self>
     where
         Self: Sized,
@@ -137,7 +137,7 @@ impl<'a> FunctionParameters<'a> {
     }
 }
 
-impl<'a> TryParse<'a> for FunctionParameters<'a> {
+impl<'a> TryParse<'a, Self> for FunctionParameters<'a> {
     fn try_parse(text: &'a str) -> ParseResult<Self>
     where
         Self: Sized,
@@ -205,7 +205,7 @@ impl<'a> FuncParameter<'a> {
     }
 }
 
-impl<'a> TryParse<'a> for FuncParameter<'a> {
+impl<'a> TryParse<'a, Self> for FuncParameter<'a> {
     fn try_parse(text: &'a str) -> ParseResult<Self> {
         let mut parse_pointer = skip_whitespace(text);
         let (delta, ident) = Identifier::try_parse(&text[parse_pointer..])?;
@@ -249,7 +249,7 @@ impl<'a> Assertion<'a> {
     }
 }
 
-impl<'a> TryParse<'a> for Assertion<'a> {
+impl<'a> TryParse<'a, Self> for Assertion<'a> {
     fn try_parse(text: &'a str) -> ParseResult<Self> {
         let mut parse_pointer = skip_whitespace(text);
 

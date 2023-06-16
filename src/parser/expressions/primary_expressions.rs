@@ -1,4 +1,4 @@
-use std::eprintln;
+use std::{eprintln, marker::PhantomData};
 
 use crate::{
     parser::{
@@ -21,9 +21,9 @@ use serde::Serialize;
 // x      record-expression
 // x       identifier-expression
 //       section-access-expression
-//       parenthesized-expression
+// x      parenthesized-expression
 // x      field-access-expression
-//       item-access-expression
+// x      item-access-expression
 // x      invoke-expression
 //       not-implemented-expression
 //
@@ -222,7 +222,7 @@ pub(crate) struct FieldAccess<'a> {
     selector: Identifier<'a>,
 }
 
-impl<'a> TryParse<'a> for FieldAccess<'a> {
+impl<'a> TryParse<'a, Self> for FieldAccess<'a> {
     fn try_parse(text: &'a str) -> ParseResult<Self>
     where
         Self: Sized,
@@ -293,7 +293,7 @@ pub(crate) struct ItemAccess<'a> {
     selector: Expression<'a>,
 }
 
-impl<'a> TryParse<'a> for ItemAccess<'a> {
+impl<'a> TryParse<'a, Self> for ItemAccess<'a> {
     fn try_parse(text: &'a str) -> ParseResult<Self>
     where
         Self: Sized,
@@ -404,6 +404,52 @@ fn find_next_bracket_on_syntax_level(text: &str) -> Option<usize>{
     None
 
 }
+
+struct ParenthesizedExpression<'a, T: 'a> {
+    _phantom: PhantomData<&'a T>,
+}
+
+impl<'a, T> TryParse<'a, Expression<'a>> for ParenthesizedExpression<'a, T> {
+
+    fn try_parse(text: &'a str) -> ParseResult<Expression<'_>>
+        where
+            Self: Sized {
+
+        let mut parse_pointer = skip_whitespace(text);
+        if next_char(&text[parse_pointer..]).unwrap_or('_') != operators::OPEN_PAREN {
+            return Err(
+                Box::new(
+                    ParseError::InvalidInput { 
+                        pointer: parse_pointer, 
+                        ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE) 
+                    }
+                )
+            );
+        };
+        parse_pointer += 1; // Skip OPEN_PAREN
+        let (delta, expr) = Expression::try_parse(&text[parse_pointer..])?;
+
+        parse_pointer += delta;
+        if next_char(&text[parse_pointer..]).unwrap_or('_') != operators::CLOSE_PAREN {
+            return Err(
+                Box::new(
+                    ParseError::InvalidInput { 
+                        pointer: parse_pointer, 
+                        ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE) 
+                    }
+                )
+            );
+        }
+        parse_pointer += 1; // Skip CLOSE_PAREN
+        Ok((parse_pointer, expr))
+
+    }
+
+}
+
+
+
+
 #[cfg(test)]
 mod tests {
     use std::{assert_eq, todo};
