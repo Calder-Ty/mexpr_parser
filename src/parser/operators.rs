@@ -27,3 +27,10 @@ pub const OPEN_BRACE_STR: &str = "{";
 
 pub const CLOSE_BRACE: char = '}';
 pub const CLOSE_BRACE_STR: &str = "}";
+
+
+pub const OPEN_PAREN: char = '(';
+pub const OPEN_PAREN_STR: &str = "(";
+
+pub const CLOSE_PAREN: char = ')';
+pub const CLOSE_PAREN_STR: &str = ")";

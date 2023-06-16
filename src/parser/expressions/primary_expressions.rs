@@ -232,7 +232,8 @@ impl<'a> TryParse<'a> for FieldAccess<'a> {
         // For FieldAccess to be valid, There _has_ to be an '[' somewhere near.
         // To ensure that we are not in a situation where we recurse forever
         // and overflow the stack, we are going to make sure that the primary Expression we
-        // parse is limited to the text immediately preceding the next `[`
+        // parse is limited to the text immediately preceding the next `[`, on the same
+        // syntax level.
         //
         // If There is no `[`, we will fail, as the current expression we are parsing cannot
         // possibly be an FieldAccess.
@@ -243,12 +244,17 @@ impl<'a> TryParse<'a> for FieldAccess<'a> {
             }));
         }
 
-        let primary_end = text
-            .chars()
-            .take_while(|c| *c != operators::OPEN_BRACKET)
-            .count();
+        let primary_end = if let Some(v) = find_next_bracket_on_syntax_level(&text[parse_pointer..]){
+            v
+        } else {
+            return Err(Box::new(ParseError::InvalidInput {
+                pointer: parse_pointer,
+                ctx: gen_error_ctx(text, parse_pointer, 5),
+            }));
+        };
 
-        let (delta, expr) = match PrimaryExpression::try_parse(&text[parse_pointer..primary_end]) {
+
+        let (delta, expr) = match PrimaryExpression::try_parse(&text[parse_pointer..parse_pointer + primary_end]) {
             Ok((i, v)) => (i, Some(v)),
             Err(_) => (0, None),
         };
@@ -356,6 +362,48 @@ impl<'a> TryParse<'a> for ItemAccess<'a> {
     }
 }
 
+
+/// This finds the next instance of the character on the same syntactic level as the current
+/// expression
+fn find_next_brace_on_syntax_level(text: &str) -> Option<usize>{
+
+    let mut level = 0;
+    for (i, c) in text.char_indices() {
+        // If we hit our target on our level, return
+        match c {
+            operators::OPEN_BRACE if level==0 => return Some(i),
+            operators::OPEN_BRACKET | operators::OPEN_PAREN => level += 1,
+            operators::CLOSE_BRACKET | operators::CLOSE_PAREN => level -= 1,
+        _ => ()
+        };
+        if level < 0 {
+            return None
+        };
+    };
+    // We've reached the end of the rope here.
+    None
+
+}
+
+fn find_next_bracket_on_syntax_level(text: &str) -> Option<usize>{
+
+    let mut level = 0;
+    for (i, c) in text.char_indices() {
+        // If we hit our target on our level, return
+        match c {
+            operators::OPEN_BRACKET if level == 0 => return Some(i),
+            operators::OPEN_BRACE | operators::OPEN_PAREN => level += 1,
+            operators::CLOSE_BRACE | operators::CLOSE_PAREN => level -= 1,
+        _ => ()
+        };
+        if level < 0 {
+            return None
+        };
+    };
+    // We've reached the end of the rope here.
+    None
+
+}
 #[cfg(test)]
 mod tests {
     use std::{assert_eq, todo};
@@ -578,8 +626,8 @@ mod tests {
 
     #[rstest]
     #[case(
-        r#" Source{ [ value ] }[txt]"#, 
-        15,
+        r#" Source{ [ value ] }[txt]"#,
+        25,
         FieldAccess{
             expr: Some(
                 PrimaryExpression::ItemAccess(
@@ -613,6 +661,7 @@ mod tests {
         assert_eq!(exp_delta, delta);
         assert_eq!(exp_field, field);
     }
+
     #[rstest]
     #[case(r#" { value }"#)]
     fn test_item_access_fails(#[case] input_text: &str) {
