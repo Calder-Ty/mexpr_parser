@@ -577,6 +577,43 @@ mod tests {
     }
 
     #[rstest]
+    #[case(
+        r#" Source{ [ value ] }[txt]"#, 
+        15,
+        FieldAccess{
+            expr: Some(
+                PrimaryExpression::ItemAccess(
+                    Box::new(ItemAccess {
+                        expr: PrimaryExpression::Identifier(Identifier::new("Source")),
+                        selector: Expression::Primary(
+                            PrimaryExpression::FieldAccess( 
+                                Box::new(
+                                FieldAccess {
+                                    expr: None,
+                                    selector: Identifier::new("value")
+                                })
+                            )
+                        )
+                    }
+                    )
+                )),
+
+            selector: Identifier::new("txt")
+        }
+    )
+    ]
+    fn test_item_and_field_access_expression(
+        #[case] input_text: &str,
+        #[case] exp_delta: usize,
+        #[case] exp_field: FieldAccess,
+    ) {
+        let (delta, field) = FieldAccess::try_parse(input_text)
+            .expect(format!("Failed to parse test input '{}'", &input_text).as_str());
+
+        assert_eq!(exp_delta, delta);
+        assert_eq!(exp_field, field);
+    }
+    #[rstest]
     #[case(r#" { value }"#)]
     fn test_item_access_fails(#[case] input_text: &str) {
         let res = ItemAccess::try_parse(input_text);
