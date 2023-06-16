@@ -722,4 +722,17 @@ mod tests {
             Err(_) => assert!(true),
         }
     }
+
+    #[rstest]
+    #[case(r#"("thing")"#, 9, Expression::Primary(PrimaryExpression::Literal(Literal::Text("thing"))))]
+    fn parenthesized_expression(
+        #[case] input_text: &str,
+        #[case] exp_delta: usize,
+        #[case] expected: Expression
+    ) {
+        let (delta, actual) = ParenthesizedExpression::<PrimaryExpression>::try_parse(input_text).expect("Unable to parse input");
+
+        assert_eq!(exp_delta, delta);
+        assert_eq!(expected, actual);
+    }
 }
