@@ -43,6 +43,7 @@ pub(crate) enum PrimaryExpression<'a> {
     Record(Record<'a>),
     FieldAccess(Box<FieldAccess<'a>>),
     ItemAccess(Box<ItemAccess<'a>>),
+    ParenthesizedExpression(Box<Expression<'a>>),
 }
 
 impl<'a> PrimaryExpression<'a> {
@@ -68,6 +69,9 @@ impl<'a> PrimaryExpression<'a> {
         }
         if let Ok((i, val)) = Identifier::try_parse(text) {
             return Ok((i, PrimaryExpression::Identifier(val)));
+        }
+        if let Ok((i, val)) = ParenthesizedExpression::<PrimaryExpression>::try_parse(text) {
+            return Ok((i, PrimaryExpression::ParenthesizedExpression(Box::new(val))));
         }
         Err(ParseError::InvalidInput {
             pointer: 0,
@@ -550,6 +554,7 @@ mod tests {
         for (i, arg) in invokation.args.iter().enumerate() {
             match arg {
                 Expression::Each(_) => todo!(),
+                Expression::Primary(PrimaryExpression::ParenthesizedExpression(_)) => todo!(),
                 Expression::Primary(PrimaryExpression::List(_)) => todo!(),
                 Expression::Primary(PrimaryExpression::ItemAccess(_)) => todo!(),
                 Expression::Primary(PrimaryExpression::FieldAccess(_)) => todo!(),
