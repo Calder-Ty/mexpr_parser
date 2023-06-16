@@ -1,10 +1,10 @@
 use serde::Serialize;
 
-use crate::parser::{
+use crate::{parser::{
     core::TryParse,
     keywords,
     parse_utils::{followed_by_whitespace, gen_error_ctx, skip_whitespace},
-};
+}, ERR_CONTEXT_SIZE};
 
 use super::Expression;
 
@@ -25,7 +25,7 @@ impl<'a> TryParse<'a> for EachExpression<'a> {
         {
             return Err(Box::new(crate::ParseError::InvalidInput {
                 pointer: parse_pointer,
-                ctx: gen_error_ctx(text, parse_pointer, 0),
+                ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
             }));
         };
 

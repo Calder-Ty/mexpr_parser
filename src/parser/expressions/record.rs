@@ -21,7 +21,7 @@ use crate::{
         identifier::Identifier,
         parse_utils::{gen_error_ctx, skip_whitespace, ParseResult, next_char}, operators,
     },
-    ParseError,
+    ParseError, ERR_CONTEXT_SIZE,
 };
 
 use super::Expression;
@@ -45,7 +45,7 @@ impl<'a> Record<'a> {
             // Not a record
             return Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
-                ctx: gen_error_ctx(text, parse_pointer, 5),
+                ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
             }));
         };
 
@@ -68,7 +68,7 @@ impl<'a> Record<'a> {
                 // The next character must be a '='.
                 return Err(Box::new(ParseError::InvalidInput {
                     pointer: parse_pointer,
-                    ctx: gen_error_ctx(text, parse_pointer, 5),
+                    ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
                 }));
             }
 
@@ -89,7 +89,7 @@ impl<'a> Record<'a> {
             if !(text[parse_pointer..].chars().next().unwrap() == ',') {
                 return Err(Box::new(ParseError::InvalidInput {
                     pointer: parse_pointer,
-                    ctx: gen_error_ctx(text, parse_pointer, 5),
+                    ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
                 }));
             }
             parse_pointer += 1;

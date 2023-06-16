@@ -10,7 +10,7 @@ use crate::parser::parse_utils::{
     followed_by_valid_seperator, followed_by_whitespace, gen_error_ctx, next_char, skip_whitespace,
     ParseResult,
 };
-use crate::ParseError;
+use crate::{ParseError, ERR_CONTEXT_SIZE};
 
 use super::{Expression, type_expressions::PRIMITIVE_TYPES};
 
@@ -73,7 +73,7 @@ impl<'a> TryParse<'a> for FunctionExpression<'a> {
         if !(next_char(&text[parse_pointer..]).unwrap_or(' ') == '(') {
             return Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
-                ctx: gen_error_ctx(text, parse_pointer, 5),
+                ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
             }));
         };
         parse_pointer += 1; // Skip `(`
@@ -85,7 +85,7 @@ impl<'a> TryParse<'a> for FunctionExpression<'a> {
         if !(next_char(&text[parse_pointer..]).unwrap_or(' ') == ')') {
             return Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
-                ctx: gen_error_ctx(text, parse_pointer, 5),
+                ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
             }));
         }
         parse_pointer += 1; // Skip `)`
@@ -104,7 +104,7 @@ impl<'a> TryParse<'a> for FunctionExpression<'a> {
         {
             return Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
-                ctx: gen_error_ctx(text, parse_pointer, 5),
+                ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
             }));
         }
 
@@ -259,7 +259,7 @@ impl<'a> TryParse<'a> for Assertion<'a> {
             // TODO: Add Constant for Parse Pointer context size
             return Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
-                ctx: gen_error_ctx(text, parse_pointer, 5),
+                ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
             }));
         };
 
@@ -290,7 +290,7 @@ impl<'a> TryParse<'a> for Assertion<'a> {
         } else {
             Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
-                ctx: gen_error_ctx(text, parse_pointer, 5),
+                ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
             }))
         }
     }

@@ -2,7 +2,7 @@ use serde::Serialize;
 
 use crate::{
     parser::parse_utils::{gen_error_ctx, skip_whitespace, ParseResult},
-    ParseError,
+    ParseError, ERR_CONTEXT_SIZE,
 };
 
 use super::primary_expressions::PrimaryExpression;
@@ -68,7 +68,7 @@ impl<'a> TypeExpression<'a> {
         if !(text[parse_pointer..].starts_with("type") && *followed_by_space) {
             return Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
-                ctx: gen_error_ctx(text, parse_pointer, 5),
+                ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
             }));
         }
 
@@ -91,7 +91,7 @@ impl<'a> TypeExpression<'a> {
         }
         return Err(Box::new(ParseError::InvalidInput {
             pointer: parse_pointer,
-            ctx: gen_error_ctx(text, parse_pointer, 5),
+            ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
         }));
     }
 }

@@ -9,7 +9,7 @@ use crate::{
         operators,
         parse_utils::{self, gen_error_ctx, next_char, skip_whitespace, ParseResult},
     },
-    ParseError,
+    ParseError, ERR_CONTEXT_SIZE,
 };
 
 use super::{record::Record, Expression};
@@ -71,7 +71,7 @@ impl<'a> PrimaryExpression<'a> {
         }
         Err(ParseError::InvalidInput {
             pointer: 0,
-            ctx: parse_utils::gen_error_ctx(text, 0, 5),
+            ctx: parse_utils::gen_error_ctx(text, 0, ERR_CONTEXT_SIZE),
         })
     }
 }
@@ -88,7 +88,7 @@ impl<'a> ListExpression<'a> {
         if next_char(&text[parse_pointer..]).unwrap_or(' ') != '{' {
             return Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
-                ctx: parse_utils::gen_error_ctx(text, parse_pointer, 5),
+                ctx: parse_utils::gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
             }));
         }
         parse_pointer += 1;
@@ -106,7 +106,7 @@ impl<'a> ListExpression<'a> {
                 eprintln!("This Is not a regular Primary Expression, halting!");
                 panic!(
                     "This is unexpected:\n{0}",
-                    gen_error_ctx(text, parse_pointer, 10)
+                    gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE)
                 );
             }
             parse_pointer += 1; // Skip the comma
@@ -156,7 +156,7 @@ impl<'a> Invocation<'a> {
             // It is invalid for a invokation to not start with '('
             return Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
-                ctx: parse_utils::gen_error_ctx(text, parse_pointer, 5),
+                ctx: parse_utils::gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
             }));
         } else {
             parse_pointer += 1; // Skip the opening '('
@@ -183,7 +183,7 @@ impl<'a> Invocation<'a> {
             if text[parse_pointer..].chars().next().unwrap_or(',') != ',' {
                 panic!(
                     "This is unexpected:\n{0}",
-                    gen_error_ctx(text, parse_pointer, 10)
+                    gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE)
                 )
             }
             parse_pointer += 1; // Skip the comma
@@ -240,7 +240,7 @@ impl<'a> TryParse<'a> for FieldAccess<'a> {
         if !(&text[parse_pointer..].contains(operators::OPEN_BRACKET_STR)) {
             return Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
-                ctx: gen_error_ctx(text, parse_pointer, 5),
+                ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
             }));
         }
 
@@ -249,7 +249,7 @@ impl<'a> TryParse<'a> for FieldAccess<'a> {
         } else {
             return Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
-                ctx: gen_error_ctx(text, parse_pointer, 5),
+                ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
             }));
         };
 
@@ -264,7 +264,7 @@ impl<'a> TryParse<'a> for FieldAccess<'a> {
         if !(next_char(&text[parse_pointer..]).unwrap_or(' ') == operators::OPEN_BRACKET) {
             return Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
-                ctx: gen_error_ctx(text, parse_pointer, 5),
+                ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
             }));
         };
         parse_pointer += 1; // Advance past the `[`
@@ -277,7 +277,7 @@ impl<'a> TryParse<'a> for FieldAccess<'a> {
         if !(next_char(&text[parse_pointer..]).unwrap_or(' ') == operators::CLOSE_BRACKET) {
             return Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
-                ctx: gen_error_ctx(text, parse_pointer, 5),
+                ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
             }));
         };
 
@@ -310,7 +310,7 @@ impl<'a> TryParse<'a> for ItemAccess<'a> {
         if !(&text[parse_pointer..].contains(operators::OPEN_BRACE_STR)) {
             return Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
-                ctx: gen_error_ctx(text, parse_pointer, 5),
+                ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
             }));
         }
         let primary_end = text
@@ -324,7 +324,7 @@ impl<'a> TryParse<'a> for ItemAccess<'a> {
         if !(next_char(&text[parse_pointer..]).unwrap_or(' ') == operators::OPEN_BRACE) {
             return Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
-                ctx: gen_error_ctx(text, parse_pointer, 5),
+                ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
             }));
         };
         parse_pointer += 1; // Advance past the `{`
@@ -338,7 +338,7 @@ impl<'a> TryParse<'a> for ItemAccess<'a> {
         {
             return Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
-                ctx: gen_error_ctx(text, parse_pointer, 5),
+                ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
             }));
         };
 
@@ -349,13 +349,13 @@ impl<'a> TryParse<'a> for ItemAccess<'a> {
         if next_char(&text[parse_pointer..]).unwrap_or(' ') == operators::OPEN_BRACKET {
             return Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
-                ctx: gen_error_ctx(text, parse_pointer, 5),
+                ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
             }));
         };
         Ok((
             parse_pointer,
             Self {
-                expr: expr,
+                expr,
                 selector,
             },
         ))

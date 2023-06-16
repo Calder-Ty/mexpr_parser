@@ -11,7 +11,7 @@ use crate::{
             skip_whitespace, ParseResult,
         },
     },
-    ParseError,
+    ParseError, ERR_CONTEXT_SIZE,
 };
 
 use super::type_expressions::Type;
@@ -198,7 +198,7 @@ impl<'a> UnaryExpression<'a> {
         }
         Err(Box::new(ParseError::InvalidInput {
             pointer: 0,
-            ctx: gen_error_ctx(text, 0, 10),
+            ctx: gen_error_ctx(text, 0, ERR_CONTEXT_SIZE),
         }))
     }
 }
@@ -217,14 +217,14 @@ impl<'a> Unary<'a> {
                 } else {
                     return Err(Box::new(ParseError::InvalidInput {
                         pointer: parse_pointer,
-                        ctx: gen_error_ctx(text, parse_pointer, 5),
+                        ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
                     }));
                 }
             }
             None => {
                 return Err(Box::new(ParseError::InvalidInput {
                     pointer: parse_pointer,
-                    ctx: gen_error_ctx(text, parse_pointer, 5),
+                    ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
                 }));
             }
         };

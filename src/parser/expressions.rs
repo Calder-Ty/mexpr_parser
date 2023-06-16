@@ -13,7 +13,7 @@ use super::{
     keywords, operators,
     parse_utils::{self, gen_error_ctx, skip_whitespace, ParseResult},
 };
-use crate::ParseError;
+use crate::{ParseError, ERR_CONTEXT_SIZE};
 use primary_expressions::PrimaryExpression;
 use serde::Serialize;
 
@@ -45,7 +45,7 @@ impl<'a> Expression<'a> {
         }
         Err(Box::new(ParseError::InvalidInput {
             pointer: 0,
-            ctx: gen_error_ctx(text, 0, 5),
+            ctx: gen_error_ctx(text, 0, ERR_CONTEXT_SIZE),
         }))
     }
 
@@ -80,7 +80,7 @@ impl<'a> Expression<'a> {
         }
         Err(Box::new(ParseError::InvalidInput {
             pointer: 0,
-            ctx: gen_error_ctx(text, 0, 5),
+            ctx: gen_error_ctx(text, 0, ERR_CONTEXT_SIZE),
         }))
     }
 }
@@ -111,7 +111,7 @@ impl<'a> LetExpression<'a> {
         if !(text[parse_pointer..].starts_with("let") && *let_sep) {
             return Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
-                ctx: parse_utils::gen_error_ctx(text, parse_pointer, 5),
+                ctx: parse_utils::gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
             }));
         }
         parse_pointer += 4; // skip 'let '
@@ -140,7 +140,7 @@ impl<'a> LetExpression<'a> {
         if !(text[parse_pointer..].starts_with("in") && *in_sep) {
             return Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
-                ctx: parse_utils::gen_error_ctx(text, parse_pointer, 5),
+                ctx: parse_utils::gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
             }));
         }
         parse_pointer += 3; // Skip 'in '
