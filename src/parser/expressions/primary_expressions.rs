@@ -425,30 +425,25 @@ impl<'a, T> TryParse<'a, Expression<'a>> for ParenthesizedExpression<'a, T> {
                 Box::new(
                     ParseError::InvalidInput { 
                         pointer: parse_pointer, 
-                        ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE) 
+                        ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE)
                     }
                 )
             );
         };
         parse_pointer += 1; // Skip OPEN_PAREN
-        let (delta, expr) = Expression::try_parse(&text[parse_pointer..])?;
-
+        let (delta, expr) = Expression::try_parse_with_lookahead(&text[parse_pointer..], parenthesized_lookahead)?;
         parse_pointer += delta;
-        if next_char(&text[parse_pointer..]).unwrap_or('_') != operators::CLOSE_PAREN {
-            return Err(
-                Box::new(
-                    ParseError::InvalidInput { 
-                        pointer: parse_pointer, 
-                        ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE) 
-                    }
-                )
-            );
-        }
-        parse_pointer += 1; // Skip CLOSE_PAREN
+        parse_pointer += 1; // Skip CLOSE_PAREN (the lookahead above guarantees that we have a
+        // closing paren
         Ok((parse_pointer, expr))
 
     }
 
+}
+
+fn parenthesized_lookahead(text: &str) -> bool {
+    let lookahead_pointer = skip_whitespace(text);
+    next_char(&text[lookahead_pointer..]).unwrap_or(' ') == operators::CLOSE_PAREN
 }
 
 
