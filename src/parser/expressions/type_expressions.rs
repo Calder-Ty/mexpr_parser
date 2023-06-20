@@ -30,14 +30,14 @@ pub(crate) const PRIMITIVE_TYPES: [&str; 18] = [
 
 #[derive(Debug, Serialize, PartialEq)]
 pub(crate) enum Type<'a> {
-    TypeExpression(TypeExpression<'a>),
+    PrimaryType(PrimaryType<'a>),
     Primary(PrimaryExpression<'a>),
 }
 
 impl<'a> Type<'a> {
     pub fn try_parse(text: &'a str) -> ParseResult<Self> {
-        if let Ok((i, val)) = TypeExpression::try_parse(text) {
-            return Ok((i, Type::TypeExpression(val)));
+        if let Ok((i, val)) = PrimaryType::try_parse(text) {
+            return Ok((i, Type::PrimaryType(val)));
         }
 
         let (i, val) = PrimaryExpression::try_parse(text)?;
@@ -46,11 +46,11 @@ impl<'a> Type<'a> {
 }
 
 #[derive(Debug, Serialize, PartialEq)]
-pub(crate) struct TypeExpression<'a> {
+pub(crate) struct PrimaryType<'a> {
     text: &'a str,
 }
 
-impl<'a> TypeExpression<'a> {
+impl<'a> PrimaryType<'a> {
 
     #[cfg(test)]
     pub(crate) fn new(text: &'a str) -> Self { Self { text } }
@@ -113,7 +113,7 @@ mod tests {
         #[case] name: &str,
         #[case] exp_delta: usize,
     ) {
-        let (delta, res) = TypeExpression::try_parse(input_text)
+        let (delta, res) = PrimaryType::try_parse(input_text)
             .expect(format!("Couldn't parse input, {0}", input_text).as_str());
         assert_eq!(name, res.text);
         assert_eq!(exp_delta, delta);
