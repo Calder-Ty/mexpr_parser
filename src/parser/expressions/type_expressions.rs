@@ -30,14 +30,14 @@ pub(crate) const PRIMITIVE_TYPES: [&str; 18] = [
 
 #[derive(Debug, Serialize, PartialEq)]
 pub(crate) enum Type<'a> {
-    TypeStatement(TypeExpression<'a>),
+    TypeExpression(TypeExpression<'a>),
     Primary(PrimaryExpression<'a>),
 }
 
 impl<'a> Type<'a> {
     pub fn try_parse(text: &'a str) -> ParseResult<Self> {
         if let Ok((i, val)) = TypeExpression::try_parse(text) {
-            return Ok((i, Type::TypeStatement(val)));
+            return Ok((i, Type::TypeExpression(val)));
         }
 
         let (i, val) = PrimaryExpression::try_parse(text)?;

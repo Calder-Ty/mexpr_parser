@@ -601,7 +601,7 @@ mod tests {
                 Expression::Primary(PrimaryExpression::Literal(Literal::Text(" Not a 235.E10 variable"))),
                 Expression::Primary(PrimaryExpression::Literal(Literal::Logical(false))),
                 Expression::Primary(PrimaryExpression::Literal(Literal::Number(NumberType::Float(1234.5)))),
-                Expression::Type(crate::parser::expressions::Type::TypeStatement( TypeExpression::new("type datetime") ))
+                Expression::Type(crate::parser::expressions::Type::TypeExpression( TypeExpression::new("type datetime") ))
             ]
         },
 58)
