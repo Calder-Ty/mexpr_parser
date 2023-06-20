@@ -455,7 +455,7 @@ mod tests {
 
     use super::*;
     use crate::parser::{
-        expressions::type_expressions::PrimaryType,
+        expressions::type_expressions::{PrimaryType, PrimitiveType},
         identifier::Identifier,
         literal::{Literal, NumberType},
     };
@@ -601,7 +601,7 @@ mod tests {
                 Expression::Primary(PrimaryExpression::Literal(Literal::Text(" Not a 235.E10 variable"))),
                 Expression::Primary(PrimaryExpression::Literal(Literal::Logical(false))),
                 Expression::Primary(PrimaryExpression::Literal(Literal::Number(NumberType::Float(1234.5)))),
-                Expression::Type(crate::parser::expressions::Type::PrimaryType( PrimaryType::new("type datetime") ))
+                Expression::Type(crate::parser::expressions::Type::PrimaryType( PrimaryType::PrimitiveType(PrimitiveType::new("datetime") )))
             ]
         },
 58)

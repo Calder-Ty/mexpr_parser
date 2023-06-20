@@ -34,3 +34,6 @@ pub const OPEN_PAREN_STR: &str = "(";
 
 pub const CLOSE_PAREN: char = ')';
 pub const CLOSE_PAREN_STR: &str = ")";
+
+pub const EQUAL: char = '=';
+pub const EQUAL_STR: &str = "=";

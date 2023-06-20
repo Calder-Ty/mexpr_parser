@@ -1,7 +1,15 @@
-use serde::Serialize;
+use serde::{Serialize, __private::de::IdentifierDeserializer};
 
 use crate::{
-    parser::parse_utils::{gen_error_ctx, skip_whitespace, ParseResult},
+    parser::{
+        core::TryParse,
+        identifier::Identifier,
+        operators,
+        parse_utils::{
+            followed_by_valid_seperator, followed_by_whitespace, gen_error_ctx, next_char,
+            skip_whitespace, ParseResult,
+        },
+    },
     ParseError, ERR_CONTEXT_SIZE,
 };
 
@@ -46,26 +54,19 @@ impl<'a> Type<'a> {
 }
 
 #[derive(Debug, Serialize, PartialEq)]
-pub(crate) struct PrimaryType<'a> {
-    text: &'a str,
+pub(crate) enum PrimaryType<'a> {
+    PrimitiveType(PrimitiveType<'a>),
+    TableType(TableType<'a>),
 }
 
 impl<'a> PrimaryType<'a> {
-
-    #[cfg(test)]
-    pub(crate) fn new(text: &'a str) -> Self { Self { text } }
-
     pub fn try_parse(text: &'a str) -> ParseResult<Self> {
         let mut parse_pointer = skip_whitespace(text);
         let start = parse_pointer;
-        let followed_by_space = &text[parse_pointer..]
-            .chars()
-            .skip(4)
-            .next()
-            .unwrap_or('_')
-            .is_whitespace();
 
-        if !(text[parse_pointer..].starts_with("type") && *followed_by_space) {
+        if !(text[parse_pointer..].starts_with("type")
+            && followed_by_whitespace(&text[parse_pointer..], 4))
+        {
             return Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
                 ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
@@ -73,9 +74,38 @@ impl<'a> PrimaryType<'a> {
         }
 
         parse_pointer += 4; // length of the word "type"
-        parse_pointer += skip_whitespace(&text[parse_pointer..]); // length of the word "type"
+        parse_pointer += skip_whitespace(&text[parse_pointer..]);
 
         // for now only supporting the 'primitive type' expression
+        if let Ok((i, v)) = PrimitiveType::try_parse(&text[parse_pointer..]) {
+            return Ok((parse_pointer + i, PrimaryType::PrimitiveType(v)));
+        }
+        return Err(Box::new(ParseError::InvalidInput {
+            pointer: parse_pointer,
+            ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
+        }));
+    }
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+pub(crate) struct PrimitiveType<'a> {
+    text: &'a str,
+}
+
+impl<'a> PrimitiveType<'a> {
+    #[cfg(test)]
+    pub(crate) fn new(text: &'a str) -> Self {
+        Self { text }
+    }
+}
+
+impl<'a> TryParse<'a, Self> for PrimitiveType<'a> {
+    fn try_parse(text: &'a str) -> ParseResult<Self>
+    where
+        Self: Sized,
+    {
+        let mut parse_pointer = skip_whitespace(text);
+        let start = parse_pointer;
         let delta_type = &text[parse_pointer..]
             .chars()
             .take_while(|c| (*c).is_ascii_alphabetic())
@@ -89,10 +119,48 @@ impl<'a> PrimaryType<'a> {
                 },
             ));
         }
-        return Err(Box::new(ParseError::InvalidInput {
+        Err(Box::new(ParseError::InvalidInput {
             pointer: parse_pointer,
             ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
-        }));
+        }))
+    }
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+pub(crate) struct TableType<'a> {
+    row_spec: Vec<FieldSpecification<'a>>,
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+pub(crate) struct FieldSpecification<'a> {
+    name: Identifier<'a>,
+    spec: Type<'a>,
+}
+
+impl<'a> TryParse<'a, Self> for FieldSpecification<'a> {
+    fn try_parse(text: &'a str) -> ParseResult<Self>
+    where
+        Self: Sized,
+    {
+        let mut parse_pointer = skip_whitespace(text);
+        let (delta, name) = Identifier::try_parse(&text[parse_pointer..])?;
+
+        parse_pointer += delta;
+        parse_pointer += skip_whitespace(&text[parse_pointer..]);
+
+        if next_char(&text[parse_pointer..]).unwrap_or(' ') != operators::EQUAL {
+            return Err(Box::new(ParseError::InvalidInput {
+                pointer: parse_pointer,
+                ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
+            }));
+        }
+        parse_pointer += 1; // Skip `=`
+
+        let (delta, spec) = Type::try_parse(&text[parse_pointer..])?;
+
+        parse_pointer += delta;
+
+        Ok((parse_pointer, Self { name, spec }))
     }
 }
 
@@ -104,18 +172,43 @@ mod tests {
     use super::*;
     use rstest::rstest;
 
-
     #[rstest]
-    #[case("    type null", "type null", 13)]
-    #[case("    type datetime  ", "type datetime", 17)]
-    fn test_type_expr_parser(
+    #[case("    type null", 13, PrimaryType::PrimitiveType(PrimitiveType {  text: "null"}))]
+    #[case("    type datetime  ", 17, PrimaryType::PrimitiveType(PrimitiveType {  text: "datetime"}))]
+    fn test_primary_type(
         #[case] input_text: &str,
-        #[case] name: &str,
         #[case] exp_delta: usize,
+        #[case] expected: PrimaryType,
     ) {
         let (delta, res) = PrimaryType::try_parse(input_text)
             .expect(format!("Couldn't parse input, {0}", input_text).as_str());
+        assert_eq!(expected, res);
+        assert_eq!(exp_delta, delta);
+    }
+
+    #[rstest]
+    #[case("    null", "null", 8)]
+    #[case("    datetime  ", "datetime", 12)]
+    fn test_primitive_type(#[case] input_text: &str, #[case] name: &str, #[case] exp_delta: usize) {
+        let (delta, res) = PrimitiveType::try_parse(input_text)
+            .expect(format!("Couldn't parse input, {0}", input_text).as_str());
         assert_eq!(name, res.text);
+        assert_eq!(exp_delta, delta);
+    }
+
+    #[rstest]
+    #[case("  ident = null", 14, FieldSpecification {
+        name: Identifier::new("ident"),
+        spec: Type::Primary(PrimaryExpression::Literal(crate::parser::literal::Literal::Null))
+    })]
+    fn test_field_specification(
+        #[case] input_text: &str,
+        #[case] exp_delta: usize,
+        #[case] expected: FieldSpecification,
+    ) {
+        let (delta, res) = FieldSpecification::try_parse(input_text)
+            .expect(format!("Couldn't parse input, {0}", input_text).as_str());
+        assert_eq!(expected, res);
         assert_eq!(exp_delta, delta);
     }
 }
