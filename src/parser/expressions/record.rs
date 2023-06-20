@@ -135,6 +135,16 @@ mod tests {
                 )),
             }],
         })]
+    #[case(r#"[#"ident"="abcdefg"]}"#,
+         20,
+        Record {
+            fields: vec![Field {
+                name: Identifier::new("ident"),
+                expr: Expression::Primary(PrimaryExpression::Literal(
+                    crate::parser::literal::Literal::Text("abcdefg"),
+                )),
+            }],
+        })]
     #[case(r#"[ident="abcdefg"]}"#,
          17,
         Record {
