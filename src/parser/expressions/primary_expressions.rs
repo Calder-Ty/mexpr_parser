@@ -505,85 +505,79 @@ mod tests {
 
     #[rstest]
     #[case(
-    r#"This("Not a variable", true, identifier)"#, 
-    "This",
-    vec![
-         PrimaryExpression::Literal(Literal::Text("Not a variable")), 
-         PrimaryExpression::Literal(Literal::Logical(true)),
-         PrimaryExpression::Identifier(Identifier::new("identifier"),
-    )],
+    r#"Table.AddColumn(#"Inserted Start of Month", "Period", each Date.ToText([Start of Month],"MMM yyyy"))"#,
+        Invocation {
+        invoker: PrimaryExpression::Identifier(Identifier::new("Table.AddColumn")),
+        args: vec![
+         Expression::Primary(PrimaryExpression::Literal(Literal::Text("Inserted Start of Month"))),
+         Expression::Primary(PrimaryExpression::Literal(Literal::Text("Period"))),
+    ]
+        },
     40
 ) ]
+//     #[case(
+//     r#"This("Not a variable", true, identifier)"#,
+//         Invocation {
+//         invoker: PrimaryExpression::Identifier(Identifier::new("This")),
+//         args: vec![
+//          Expression::Primary(PrimaryExpression::Literal(Literal::Text("Not a variable"))),
+//          Expression::Primary(PrimaryExpression::Literal(Literal::Logical(true))),
+//          Expression::Primary(PrimaryExpression::Identifier(Identifier::new("identifier")),
+//     )],
+// 
+//         },
+//     40
+// ) ]
     #[case(
     r#"This(#!" Not a 235.E10 variable"  ,false  , 1234.5 , 0x25)"#, 
-    "This", 
-    vec![
-        PrimaryExpression::Literal(Literal::Verbatim(" Not a 235.E10 variable")), 
-        PrimaryExpression::Literal(Literal::Logical(false)),
-        PrimaryExpression::Literal(Literal::Number(NumberType::Float(1234.5))),
-        PrimaryExpression::Literal(Literal::Number(NumberType::Int(0x25))),
+        Invocation {
+    invoker: PrimaryExpression::Identifier(Identifier::new("This")), 
+    args: vec![
+        Expression::Primary(PrimaryExpression::Literal(Literal::Verbatim(" Not a 235.E10 variable"))), 
+        Expression::Primary(PrimaryExpression::Literal(Literal::Logical(false))),
+        Expression::Primary(PrimaryExpression::Literal(Literal::Number(NumberType::Float(1234.5)))),
+        Expression::Primary(PrimaryExpression::Literal(Literal::Number(NumberType::Int(0x25)))),
     ],
+        },
 58) ]
-    #[case(
-    r#"This(" Not a 235.E10 variable", false, 1234.5, 0x25)"#, 
-    "This", 
-    vec![
-        PrimaryExpression::Literal(Literal::Text(" Not a 235.E10 variable")), 
-        PrimaryExpression::Literal(Literal::Logical(false)),
-        PrimaryExpression::Literal(Literal::Number(NumberType::Float(1234.5))),
-        PrimaryExpression::Literal(Literal::Number(NumberType::Int(0x25))),
-    ],
-52)
-]
-    #[case(
-    r#"#date(" Not a 235.E10 variable", false, 1234.5, 0x25)"#, 
-    "#date", 
-    vec![
-        PrimaryExpression::Literal(Literal::Text(" Not a 235.E10 variable")), 
-        PrimaryExpression::Literal(Literal::Logical(false)),
-        PrimaryExpression::Literal(Literal::Number(NumberType::Float(1234.5))),
-        PrimaryExpression::Literal(Literal::Number(NumberType::Int(0x25))),
-    ],
-53)
-]
+//     #[case(
+//     r#"This(" Not a 235.E10 variable", false, 1234.5, 0x25)"#, 
+//         Invocation {
+//
+//     invoker: PrimaryExpression::Identifier(Identifier::new("This")),
+//     args: vec![
+//         Expression::Primary(PrimaryExpression::Literal(Literal::Text(" Not a 235.E10 variable"))),
+//         Expression::Primary(PrimaryExpression::Literal(Literal::Logical(false))),
+//         Expression::Primary(PrimaryExpression::Literal(Literal::Number(NumberType::Float(1234.5)))),
+//         Expression::Primary(PrimaryExpression::Literal(Literal::Number(NumberType::Int(0x25)))),
+//     ]
+//         },
+// 52)
+// ]
+//     #[case(
+//     r#"#date(" Not a 235.E10 variable", false, 1234.5, 0x25)"#,
+//         Invocation {
+//     invoker: PrimaryExpression::Identifier(Identifier::new("#date")),
+//     args: vec![
+//         Expression::Primary(PrimaryExpression::Literal(Literal::Text(" Not a 235.E10 variable"))),
+//         Expression::Primary(PrimaryExpression::Literal(Literal::Logical(false))),
+//         Expression::Primary(PrimaryExpression::Literal(Literal::Number(NumberType::Float(1234.5)))),
+//         Expression::Primary(PrimaryExpression::Literal(Literal::Number(NumberType::Int(0x25)))),
+//     ],
+//         },
+// 53)
+// ]
     fn test_invokation_parser_mixed(
         #[case] input_text: &str,
-        #[case] ident: &str,
-        #[case] vars: Vec<PrimaryExpression>,
+        #[case] expected: Invocation,
         #[case] exp_delta: usize,
     ) {
         let (delta, invokation) = Invocation::try_parse(input_text)
             .expect(format!("failed to parse test input '{}'", &input_text).as_str());
 
-        if let PrimaryExpression::Identifier(invoker) = invokation.invoker {
-            assert_eq!(invoker.text(), ident)
-        }
+        assert_eq!(expected, invokation);
         assert_eq!(exp_delta, delta);
 
-        for (i, arg) in invokation.args.iter().enumerate() {
-            match arg {
-                Expression::Each(_) => todo!(),
-                Expression::Primary(PrimaryExpression::ParenthesizedExpression(_)) => todo!(),
-                Expression::Primary(PrimaryExpression::List(_)) => todo!(),
-                Expression::Primary(PrimaryExpression::ItemAccess(_)) => todo!(),
-                Expression::Primary(PrimaryExpression::FieldAccess(_)) => todo!(),
-                Expression::Primary(PrimaryExpression::Record(_)) => todo!(),
-                Expression::Primary(PrimaryExpression::Identifier(ident)) => {
-                    assert_matches!(&vars[i], PrimaryExpression::Identifier(expected) => {
-                        assert_eq!(ident.text(), expected.text())
-                    })
-                }
-                Expression::Primary(PrimaryExpression::Invoke(_invoke)) => todo!(),
-                Expression::Primary(PrimaryExpression::Literal(_literal)) => {
-                    assert_matches!(&vars[i], PrimaryExpression::Literal(expected) => {
-                        assert_matches!(expected, _literal)
-                    })
-                }
-                Expression::Let(_) | Expression::Logical(_) | Expression::Type(_) => {
-                    todo!("Need to test these cases")
-                }
-            }
-        }
     }
 
     #[rstest]

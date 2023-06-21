@@ -306,7 +306,7 @@ impl<'a> Literal<'a> {
                 }
                 //check for escape sequence
                 if c == '"' {
-                    if text[text_start + i..].chars().next().unwrap_or(' ') == '"' {
+                    if text[text_start + i + 1..].chars().next().unwrap_or(' ') == '"' {
                         // Not the end, just an escaped '"'
                         skip = true;
                         continue;
@@ -316,7 +316,7 @@ impl<'a> Literal<'a> {
                 }
             }
             Ok((
-                text_start + final_i,
+                text_start + final_i + 1, // Account for the final `"`
                 Self::Verbatim(&text[text_start + 3..text_start + final_i]),
             )) // ADD Three to skip the #!"
         } else {
@@ -387,19 +387,19 @@ mod tests {
         r#"   #!"This is verbaitm text""#,
         Literal::Verbatim("This is verbaitm text"),
         "This is verbaitm text",
-        27
+        28
     )]
     #[case(
         r#"#!"Thi""s is verbaitm text""#,
         Literal::Verbatim("This is verbaitm text"),
         r#"Thi""s is verbaitm text"#,
-        26
+        27
     )]
     #[case(
         r#"#!"This is verbaitm text""#,
         Literal::Verbatim("This is verbaitm text"),
         "This is verbaitm text",
-        24
+        25
     )]
     // #[case(r#" !#"""""""" "#, Literal::Text(r#""""""""""#), r#""""""""""#)]
     fn test_verbatim_literal_parser(
