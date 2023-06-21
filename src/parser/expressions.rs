@@ -60,11 +60,6 @@ impl<'a> Expression<'a> {
                 return Ok((i, Expression::Primary(val)));
             }
         }
-        if let Ok((i, val)) = Type::try_parse(text) {
-            if lookahead_func(&text[i..]) {
-                return Ok((i, Expression::Type(val)));
-            }
-        }
         if let Ok((i, val)) = EachExpression::try_parse(text) {
             if lookahead_func(&text[i..]) {
                 return Ok((i, Expression::Each(Box::new(val))));

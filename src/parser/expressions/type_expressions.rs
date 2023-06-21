@@ -96,6 +96,9 @@ impl<'a> PrimaryType<'a> {
     pub fn try_parse(text: &'a str) -> ParseResult<Self> {
         let parse_pointer = skip_whitespace(text);
 
+        if let Ok((i, v)) = TableType::try_parse(&text[parse_pointer..]) {
+            return Ok((parse_pointer + i, PrimaryType::TableType(v)));
+        }
         // for now only supporting the 'primitive type' expression
         if let Ok((i, v)) = PrimitiveType::try_parse(&text[parse_pointer..]) {
             return Ok((parse_pointer + i, PrimaryType::PrimitiveType(v)));
@@ -158,8 +161,8 @@ impl<'a> TryParse<'a, Self> for TableType<'a> {
     {
         let mut parse_pointer = skip_whitespace(text);
 
-        if !(text[parse_pointer..].starts_with(keywords::TABLE)
-           && followed_by_whitespace(&text[parse_pointer..], keywords::TABLE.len()))
+        if !(text[parse_pointer..].starts_with("table")
+           && followed_by_whitespace(&text[parse_pointer..], 5))
         {
             return Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
@@ -167,7 +170,7 @@ impl<'a> TryParse<'a, Self> for TableType<'a> {
             }));
         };
 
-        parse_pointer += keywords::TABLE.len();
+        parse_pointer += 5;
         let (delta, row_spec) = Vec::<FieldSpecification>::try_parse(&text[parse_pointer..])?;
         parse_pointer += delta;
 
@@ -333,6 +336,34 @@ mod tests {
         #[case] expected: Vec<FieldSpecification>,
     ) {
         let (delta, res) = Vec::<FieldSpecification>::try_parse(input_text)
+            .expect(format!("Couldn't parse input, {0}", input_text).as_str());
+        assert_eq!(expected, res);
+        assert_eq!(exp_delta, delta);
+    }
+
+
+
+
+    #[rstest]
+    #[case(r#"table [#"Submission Type" = _t, Identifyer = _t]"#,
+        48,
+        TableType {
+            row_spec:
+        vec![FieldSpecification {
+        name: Identifier::new("Submission Type"),
+        spec: Type::Primary(PrimaryExpression::Identifier(Identifier::new( "_t" ))),
+    }, 
+        FieldSpecification {
+        name: Identifier::new("Identifyer"),
+        spec: Type::Primary(PrimaryExpression::Identifier(Identifier::new( "_t" ))),
+    }
+    ]})]
+    fn test_table_type(
+        #[case] input_text: &str,
+        #[case] exp_delta: usize,
+        #[case] expected: TableType,
+    ) {
+        let (delta, res) = TableType::try_parse(input_text)
             .expect(format!("Couldn't parse input, {0}", input_text).as_str());
         assert_eq!(expected, res);
         assert_eq!(exp_delta, delta);
