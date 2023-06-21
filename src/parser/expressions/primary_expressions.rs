@@ -156,7 +156,7 @@ impl<'a> Invocation<'a> {
         parse_pointer += delta;
         let mut args = vec![];
         parse_pointer += skip_whitespace(&text[parse_pointer..]);
-        if !&text[parse_pointer..].starts_with('(') {
+        if next_char(&text[parse_pointer..]).unwrap_or(' ') != (operators::OPEN_PAREN) {
             // It is invalid for a invokation to not start with '('
             return Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
@@ -168,7 +168,14 @@ impl<'a> Invocation<'a> {
         // Now we need to Parse the contents of the function invocation
         loop {
             // Check if it is empty function call
-            if text[parse_pointer..].chars().next().unwrap_or(')') == ')' {
+            if text[parse_pointer..].chars().next().is_none() {
+                return Err(Box::new(ParseError::InvalidInput
+                    {
+                    pointer: parse_pointer,
+                    ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE) 
+                }));
+            }
+            if text[parse_pointer..].chars().next().unwrap_or(')') == operators::CLOSE_PAREN {
                 parse_pointer += 1; // Add to account that we have moved one forward
                 break;
             }
@@ -178,13 +185,14 @@ impl<'a> Invocation<'a> {
             parse_pointer = parse_pointer
                 + delta
                 + parse_utils::skip_whitespace(&text[parse_pointer + delta..]);
+
             // If we come to the end of the text of the invocation, we want
             // to end
-            if text[parse_pointer..].chars().next().unwrap_or(')') == ')' {
+            if text[parse_pointer..].chars().next().unwrap_or('_') == operators::CLOSE_PAREN {
                 parse_pointer += 1; // Add to account that we have moved one forward
                 break;
             }
-            if text[parse_pointer..].chars().next().unwrap_or(',') != ',' {
+            if text[parse_pointer..].chars().next().unwrap_or(',') != operators::COMMA {
                 panic!(
                     "This is unexpected:\n{0}",
                     gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE)
