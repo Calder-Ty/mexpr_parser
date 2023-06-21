@@ -9,12 +9,12 @@ use crate::{
         parse_utils::{
             followed_by_valid_seperator, followed_by_whitespace, gen_error_ctx, next_char,
             skip_whitespace, ParseResult,
-        },
+        }, core::TryParse,
     },
     ParseError, ERR_CONTEXT_SIZE,
 };
 
-use super::type_expressions::Type;
+use super::type_expressions::{Type, TypeExpression};
 
 /// logical-or-expression:
 ///       logical-and-expression
@@ -68,6 +68,9 @@ pub(crate) struct AdditiveExpression<'a> {
 }
 
 impl<'a> AdditiveExpression<'a> {
+    #[cfg(test)]
+    pub(crate) fn new(rhs: MultiplicativeExpression<'a>, lhs: Option<Lhs<'a, Box<AdditiveExpression<'a>>>>) -> Self { Self { rhs, lhs } }
+
     pub fn try_parse(text: &'a str) -> ParseResult<Self> {
         let mut parse_pointer = skip_whitespace(text);
 
@@ -94,12 +97,15 @@ impl<'a> AdditiveExpression<'a> {
 }
 
 #[derive(Debug, Serialize, PartialEq)]
-struct MultiplicativeExpression<'a> {
+pub(crate) struct MultiplicativeExpression<'a> {
     rhs: MetadataExpression<'a>,
     lhs: Option<Lhs<'a, Box<MultiplicativeExpression<'a>>>>,
 }
 
 impl<'a> MultiplicativeExpression<'a> {
+    #[cfg(test)]
+    pub(crate) fn new(rhs: MetadataExpression<'a>, lhs: Option<Lhs<'a, Box<MultiplicativeExpression<'a>>>>) -> Self { Self { rhs, lhs } }
+
     pub fn try_parse(text: &'a str) -> ParseResult<Self> {
         let mut parse_pointer = skip_whitespace(text);
 
@@ -126,7 +132,7 @@ impl<'a> MultiplicativeExpression<'a> {
 }
 
 #[derive(Debug, Serialize, PartialEq)]
-struct Lhs<'a, T> {
+pub(crate) struct Lhs<'a, T> {
     expr: T,
     operator: &'a str,
 }
@@ -141,12 +147,15 @@ impl<'a, T> Lhs<'a, T> {
 ///    unary-expression
 ///    unary-expression meta unary-expression
 #[derive(Debug, Serialize, PartialEq)]
-struct MetadataExpression<'a> {
+pub(crate) struct MetadataExpression<'a> {
     rhs: UnaryExpression<'a>,
     lhs: Option<Lhs<'a, UnaryExpression<'a>>>,
 }
 
 impl<'a> MetadataExpression<'a> {
+    #[cfg(test)]
+    pub(crate) fn new(rhs: UnaryExpression<'a>, lhs: Option<Lhs<'a, UnaryExpression<'a>>>) -> Self { Self { rhs, lhs } }
+
     pub fn try_parse(text: &'a str) -> ParseResult<Self> {
         let mut parse_pointer = skip_whitespace(text);
 
@@ -177,20 +186,20 @@ impl<'a> MetadataExpression<'a> {
 ///   - unary-expression
 ///   not unary-expression
 #[derive(Debug, Serialize, PartialEq)]
-enum UnaryExpression<'a> {
-    Type(Type<'a>),
+pub(crate) enum UnaryExpression<'a> {
+    Type(TypeExpression<'a>),
     Unary(Unary<'a>),
 }
 
 #[derive(Debug, Serialize, PartialEq)]
-struct Unary<'a> {
+pub(crate) struct Unary<'a> {
     operator: &'a str,
     expr: Box<UnaryExpression<'a>>,
 }
 
 impl<'a> UnaryExpression<'a> {
     pub fn try_parse(text: &'a str) -> ParseResult<Self> {
-        if let Ok((i, val)) = Type::try_parse(text) {
+        if let Ok((i, val)) = TypeExpression::try_parse(text) {
             return Ok((i, Self::Type(val)));
         }
         if let Ok((i, val)) = Unary::try_parse(text) {
@@ -204,6 +213,9 @@ impl<'a> UnaryExpression<'a> {
 }
 
 impl<'a> Unary<'a> {
+    #[cfg(new)]
+    pub(crate) fn new(operator: &'a str, expr: Box<UnaryExpression<'a>>) -> Self { Self { operator, expr } }
+
     pub fn try_parse(text: &'a str) -> ParseResult<Self> {
         let mut parse_pointer = skip_whitespace(text);
         let (delta, operator) = match next_char(&text[parse_pointer..]) {
@@ -253,7 +265,7 @@ mod tests {
         AdditiveExpression {
             rhs: MultiplicativeExpression {
                 rhs: MetadataExpression {
-                    rhs: UnaryExpression::Type(Type::Primary(PrimaryExpression::Literal(
+                    rhs: UnaryExpression::Type(TypeExpression::Primary(PrimaryExpression::Literal(
                         Literal::Number(NumberType::Float(1.0)),
                     ))),
                     lhs: None,
@@ -264,7 +276,7 @@ mod tests {
                 Box::new(AdditiveExpression {
                     rhs: MultiplicativeExpression {
                         rhs: MetadataExpression {
-                            rhs: UnaryExpression::Type(Type::Primary(PrimaryExpression::Literal(
+                            rhs: UnaryExpression::Type(TypeExpression::Primary(PrimaryExpression::Literal(
                                 Literal::Number(NumberType::Float(2.0)),
                             ))),
                             lhs: None,
@@ -293,7 +305,7 @@ mod tests {
         let expected_delta = 5;
         let expected = MultiplicativeExpression {
             rhs: MetadataExpression {
-                rhs: UnaryExpression::Type(Type::Primary(PrimaryExpression::Literal(
+                rhs: UnaryExpression::Type(TypeExpression::Primary(PrimaryExpression::Literal(
                     Literal::Number(NumberType::Float(1.0)),
                 ))),
                 lhs: None,
@@ -301,7 +313,7 @@ mod tests {
             lhs: Some(Lhs::new(
                 Box::new(MultiplicativeExpression {
                     rhs: MetadataExpression {
-                        rhs: UnaryExpression::Type(Type::Primary(PrimaryExpression::Literal(
+                        rhs: UnaryExpression::Type(TypeExpression::Primary(PrimaryExpression::Literal(
                             Literal::Number(NumberType::Float(2.0)),
                         ))),
                         lhs: None,

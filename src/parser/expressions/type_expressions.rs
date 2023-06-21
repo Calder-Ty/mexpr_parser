@@ -36,6 +36,37 @@ pub(crate) const PRIMITIVE_TYPES: [&str; 18] = [
     "type",
 ];
 
+/// Type Expression is different from Type
+/// Per the spec, a TypeExpression is either a primary expression,
+/// or a primary-type, preceded by `type` literally.
+///
+/// A Type is either a PrimaryExpression or a PrimaryType.
+#[derive(Debug, PartialEq, Serialize)]
+pub(crate) enum TypeExpression<'a> {
+    PrimaryType(PrimaryType<'a>),
+    Primary(PrimaryExpression<'a>),
+}
+
+impl<'a> TryParse<'a, Self> for TypeExpression<'a> {
+    fn try_parse(text: &'a str) -> ParseResult<Self>
+    where
+        Self: Sized,
+    {
+        let mut parse_pointer = skip_whitespace(text);
+
+        if text[parse_pointer..].starts_with("type")
+            && followed_by_whitespace(&text[parse_pointer..], 4)
+        {
+            parse_pointer += 4;
+            let (delta, val) = PrimaryType::try_parse(&text[parse_pointer..])?;
+            Ok((parse_pointer + delta, TypeExpression::PrimaryType(val)))
+        } else {
+            let (delta, val) = PrimaryExpression::try_parse(&text[parse_pointer..])?;
+            Ok((parse_pointer + delta, TypeExpression::Primary(val)))
+        }
+    }
+}
+
 #[derive(Debug, Serialize, PartialEq)]
 pub(crate) enum Type<'a> {
     PrimaryType(PrimaryType<'a>),
@@ -61,20 +92,7 @@ pub(crate) enum PrimaryType<'a> {
 
 impl<'a> PrimaryType<'a> {
     pub fn try_parse(text: &'a str) -> ParseResult<Self> {
-        let mut parse_pointer = skip_whitespace(text);
-        let start = parse_pointer;
-
-        if !(text[parse_pointer..].starts_with("type")
-            && followed_by_whitespace(&text[parse_pointer..], 4))
-        {
-            return Err(Box::new(ParseError::InvalidInput {
-                pointer: parse_pointer,
-                ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
-            }));
-        }
-
-        parse_pointer += 4; // length of the word "type"
-        parse_pointer += skip_whitespace(&text[parse_pointer..]);
+        let parse_pointer = skip_whitespace(text);
 
         // for now only supporting the 'primitive type' expression
         if let Ok((i, v)) = PrimitiveType::try_parse(&text[parse_pointer..]) {
@@ -173,8 +191,22 @@ mod tests {
     use rstest::rstest;
 
     #[rstest]
-    #[case("    type null", 13, PrimaryType::PrimitiveType(PrimitiveType {  text: "null"}))]
-    #[case("    type datetime  ", 17, PrimaryType::PrimitiveType(PrimitiveType {  text: "datetime"}))]
+    #[case("    type null", 13, TypeExpression::PrimaryType(PrimaryType::PrimitiveType(PrimitiveType {  text: "null"})))]
+    #[case("    type datetime  ", 17, TypeExpression::PrimaryType( PrimaryType::PrimitiveType(PrimitiveType {  text: "datetime"})))]
+    fn test_type_expression(
+        #[case] input_text: &str,
+        #[case] exp_delta: usize,
+        #[case] expected: TypeExpression,
+    ) {
+        let (delta, res) = TypeExpression::try_parse(input_text)
+            .expect(format!("Couldn't parse input, {0}", input_text).as_str());
+        assert_eq!(expected, res);
+        assert_eq!(exp_delta, delta);
+    }
+
+    #[rstest]
+    #[case("     null", 9, PrimaryType::PrimitiveType(PrimitiveType {  text: "null"}))]
+    #[case("    datetime  ", 12, PrimaryType::PrimitiveType(PrimitiveType {  text: "datetime"}))]
     fn test_primary_type(
         #[case] input_text: &str,
         #[case] exp_delta: usize,
@@ -199,7 +231,7 @@ mod tests {
     #[rstest]
     #[case("  ident = null", 14, FieldSpecification {
         name: Identifier::new("ident"),
-        spec: Type::Primary(PrimaryExpression::Literal(crate::parser::literal::Literal::Null))
+        spec: Type::PrimaryType(PrimaryType::PrimitiveType(PrimitiveType { text: "null" }))
     })]
     fn test_field_specification(
         #[case] input_text: &str,

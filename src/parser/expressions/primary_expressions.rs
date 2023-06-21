@@ -455,7 +455,13 @@ mod tests {
 
     use super::*;
     use crate::parser::{
-        expressions::type_expressions::{PrimaryType, PrimitiveType},
+        expressions::{
+            type_expressions::{
+                TypeExpression, PrimaryType, PRIMITIVE_TYPES, PrimitiveType
+            }, logical::{
+                AdditiveExpression, MultiplicativeExpression,  MetadataExpression, UnaryExpression
+            }
+        },
         identifier::Identifier,
         literal::{Literal, NumberType},
     };
@@ -594,6 +600,7 @@ mod tests {
         },
 48)
 ]
+
     #[case(
     r#"{" Not a 235.E10 variable", false, 1234.5, type datetime }"#, 
         ListExpression { elements:
@@ -601,7 +608,18 @@ mod tests {
                 Expression::Primary(PrimaryExpression::Literal(Literal::Text(" Not a 235.E10 variable"))),
                 Expression::Primary(PrimaryExpression::Literal(Literal::Logical(false))),
                 Expression::Primary(PrimaryExpression::Literal(Literal::Number(NumberType::Float(1234.5)))),
-                Expression::Type(crate::parser::expressions::Type::PrimaryType( PrimaryType::PrimitiveType(PrimitiveType::new("datetime") )))
+                Expression::Logical(AdditiveExpression::new(
+                    MultiplicativeExpression::new(
+                        MetadataExpression::new(
+                            UnaryExpression::Type(
+                                TypeExpression::PrimaryType(
+                                    PrimaryType::PrimitiveType(
+                                        PrimitiveType::new( "datetime" )
+                                    )
+                                )),
+                        None ),
+                        None ),
+                    None ))
             ]
         },
 58)

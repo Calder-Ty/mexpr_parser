@@ -34,9 +34,6 @@ impl<'a> Expression<'a> {
         if let Ok((i, val)) = PrimaryExpression::try_parse(text) {
             return Ok((i, Expression::Primary(val)));
         }
-        if let Ok((i, val)) = Type::try_parse(text) {
-            return Ok((i, Expression::Type(val)));
-        }
         if let Ok((i, val)) = EachExpression::try_parse(text) {
             return Ok((i, Expression::Each(Box::new(val))));
         }
