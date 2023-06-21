@@ -1,10 +1,12 @@
+use std::vec;
+
 use serde::{Serialize, __private::de::IdentifierDeserializer};
 
 use crate::{
     parser::{
         core::TryParse,
         identifier::Identifier,
-        operators,
+        keywords, operators,
         parse_utils::{
             followed_by_valid_seperator, followed_by_whitespace, gen_error_ctx, next_char,
             skip_whitespace, ParseResult,
@@ -13,7 +15,7 @@ use crate::{
     ParseError, ERR_CONTEXT_SIZE,
 };
 
-use super::primary_expressions::PrimaryExpression;
+use super::primary_expressions::{PrimaryExpression, self};
 
 pub(crate) const PRIMITIVE_TYPES: [&str; 18] = [
     "any",
@@ -149,6 +151,72 @@ pub(crate) struct TableType<'a> {
     row_spec: Vec<FieldSpecification<'a>>,
 }
 
+impl<'a> TryParse<'a, Self> for TableType<'a> {
+    fn try_parse(text: &'a str) -> ParseResult<Self>
+    where
+        Self: Sized,
+    {
+        let mut parse_pointer = skip_whitespace(text);
+
+        if !(text[parse_pointer..].starts_with(keywords::TABLE)
+           && followed_by_whitespace(&text[parse_pointer..], keywords::TABLE.len()))
+        {
+            return Err(Box::new(ParseError::InvalidInput {
+                pointer: parse_pointer,
+                ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
+            }));
+        };
+
+        parse_pointer += keywords::TABLE.len();
+        let (delta, row_spec) = Vec::<FieldSpecification>::try_parse(&text[parse_pointer..])?;
+        parse_pointer += delta;
+
+        Ok((parse_pointer, Self { row_spec } ))
+    }
+}
+
+
+impl<'a> TryParse<'a, Vec<FieldSpecification<'a>>> for Vec<FieldSpecification<'a>> {
+    fn try_parse(text: &'a str) -> ParseResult<Self>
+    where
+        Self: Sized,
+    {
+        let mut parse_pointer = skip_whitespace(text);
+
+        if next_char(&text[parse_pointer..]).unwrap_or(' ') != operators::OPEN_BRACKET {
+            return Err(Box::new(ParseError::InvalidInput {
+                pointer: parse_pointer,
+                ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
+            }));
+        }
+
+        parse_pointer += 1; // skip the `[`
+        let mut row_spec = vec![];
+
+        loop {
+            let (delta, val) = FieldSpecification::try_parse(&text[parse_pointer..])?;
+            parse_pointer += delta;
+            parse_pointer += skip_whitespace(&text[parse_pointer..]);
+            row_spec.push(val);
+
+            if next_char(&text[parse_pointer..]).unwrap_or(' ') == operators::CLOSE_BRACKET {
+                parse_pointer += 1; // skip the `]`
+                break;
+            };
+
+            if next_char(&text[parse_pointer..]).unwrap_or(' ') != operators::COMMA {
+            return Err(Box::new(ParseError::InvalidInput {
+                pointer: parse_pointer,
+                ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
+            }));
+            }
+            parse_pointer += 1; //  Skip the `,`
+        };
+
+        Ok((parse_pointer, row_spec))
+    }
+}
+
 #[derive(Debug, Serialize, PartialEq)]
 pub(crate) struct FieldSpecification<'a> {
     name: Identifier<'a>,
@@ -239,6 +307,32 @@ mod tests {
         #[case] expected: FieldSpecification,
     ) {
         let (delta, res) = FieldSpecification::try_parse(input_text)
+            .expect(format!("Couldn't parse input, {0}", input_text).as_str());
+        assert_eq!(expected, res);
+        assert_eq!(exp_delta, delta);
+    }
+
+
+    #[rstest]
+    #[case("  [ ident = null, val = date ]", 30, vec![FieldSpecification {
+        name: Identifier::new("ident"),
+        spec: Type::PrimaryType(PrimaryType::PrimitiveType(PrimitiveType { text: "null" }))
+    }, 
+        FieldSpecification {
+        name: Identifier::new("val"),
+        spec: Type::PrimaryType(PrimaryType::PrimitiveType(PrimitiveType { text: "date" }))
+    }
+    ])]
+    #[case("  [ ident = null ]", 18, vec![FieldSpecification {
+        name: Identifier::new("ident"),
+        spec: Type::PrimaryType(PrimaryType::PrimitiveType(PrimitiveType { text: "null" }))
+    }])]
+    fn test_field_specification_list(
+        #[case] input_text: &str,
+        #[case] exp_delta: usize,
+        #[case] expected: Vec<FieldSpecification>,
+    ) {
+        let (delta, res) = Vec::<FieldSpecification>::try_parse(input_text)
             .expect(format!("Couldn't parse input, {0}", input_text).as_str());
         assert_eq!(expected, res);
         assert_eq!(exp_delta, delta);
