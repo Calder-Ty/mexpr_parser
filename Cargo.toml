@@ -12,3 +12,4 @@ clap = { version = "4.3.0", features = ["derive"] }
 serde = { version = "1.0.163", features = ["derive"] }
 serde_json = "1.0.96"
 thiserror = "1.0.40"
+unicode_categories = "0.1.1"

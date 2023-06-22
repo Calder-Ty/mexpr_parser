@@ -282,7 +282,7 @@ impl<'a> TryParse<'a, Self> for FieldAccess<'a> {
         };
         parse_pointer += 1; // Advance past the `[`
 
-        let (delta, selector) = Identifier::try_parse(&text[parse_pointer..])?;
+        let (delta, selector) = Identifier::try_parse_generalized(&text[parse_pointer..])?;
 
         parse_pointer += delta; // Advance past the `]`
         parse_pointer += skip_whitespace(&text[parse_pointer..]);

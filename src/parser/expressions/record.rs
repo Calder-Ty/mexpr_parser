@@ -60,7 +60,7 @@ impl<'a> Record<'a> {
                 break;
             }
 
-            let (delta, name) = Identifier::try_parse(&text[parse_pointer..])?;
+            let (delta, name) = Identifier::try_parse_generalized(&text[parse_pointer..])?;
             parse_pointer += delta;
             parse_pointer += skip_whitespace(&text[parse_pointer..]);
 

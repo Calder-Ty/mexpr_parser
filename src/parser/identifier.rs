@@ -1,18 +1,40 @@
 use serde::Serialize;
 use std::unreachable;
+use unicode_categories::UnicodeCategories;
 
-use crate::{parser::keywords::is_keyword, ERR_CONTEXT_SIZE};
+use crate::{parser::keywords::is_keyword, try_parse, ERR_CONTEXT_SIZE};
 
 use super::{
     literal::Literal,
-    parse_utils::{self, ParseError, ParseResult, skip_whitespace},
+    parse_utils::{self, gen_error_ctx, next_char, skip_whitespace, ParseError, ParseResult},
 };
 
 #[inline]
 fn is_identifier_part(c: &char) -> bool {
-    // For now just '.', rather than finding a group for Mn, Mc or Pc
-    // to represent continuation characters
-    c.is_alphabetic() || c.is_ascii_digit() || *c == '_' || *c == '.'
+    is_letter_character(c)
+        || c.is_number_decimal_digit()     // Nd
+        || *c == '_'
+        || c.is_punctuation_connector()    // Pc
+        || c.is_other_format()             // Cf
+        || c.is_mark_spacing_combining()   // Mc
+        || c.is_mark_nonspacing()          // Mn
+        || *c == '.' // This is not part of the spec, but it is allowed as a separator between
+                     // valid identifier parts
+}
+
+fn is_identifier_start(c: &char) -> bool {
+    is_letter_character(c) || *c == '_'
+}
+
+// The definition of "Letter Character" given by the Microsoft Spec is more restrictive
+// than given by the `is_letter` method in unicode_categories
+fn is_letter_character(c: &char) -> bool {
+    c.is_letter_modifier()                 // Lm
+        || c.is_letter_uppercase()         // Lu
+        || c.is_letter_lowercase()         // Ll
+        || c.is_letter_titlecase()         // Lt
+        || c.is_letter_other()             // Lo
+        || c.is_number_letter() // Nl
 }
 
 #[derive(Debug, Serialize, PartialEq, Eq)]
@@ -32,59 +54,138 @@ impl<'a> Identifier<'a> {
         Self { text }
     }
 
-    pub(crate) fn try_parse(text: &'a str) -> ParseResult<Self> {
-        let mut parse_pointer = skip_whitespace(&text);
+    /// Parses a Generalized Identifier, as described in the specs
+    /// generalized-identifier:
+    ///     generalized-identifier-part
+    ///     generalized-identifier separated only by blanks [(U+0020)] generalized-identifier-part
+    /// generalized-identifier-part:
+    ///     generalized-identifier-segment
+    ///     decimal-digit-character generalized-identifier-segment
+    /// generalized-identifier-segment:
+    ///     keyword-or-identifier
+    ///     keyword-or-identifier dot-character keyword-or-identifier
+    pub(crate) fn try_parse_generalized(text: &'a str) -> ParseResult<Self> {
+        if let Ok(res) = Identifier::try_parse_quoted(text) {
+            return Ok(res);
+        }
 
-        let ident_text = &text[parse_pointer..];
-        // Check if it is a Quoted Identifier
-        let is_quoted = if ident_text.starts_with(r#"#""#) {
-            // Can unwrap because we know we have initialized the value already ^^^
+        let mut parse_pointer = skip_whitespace(text);
+        let start = parse_pointer;
+
+        // Between each space seperated texts
+        loop {
+            if next_char(&text[parse_pointer..])
+                .unwrap_or(' ')
+                .is_number_decimal_digit()
+            {
+                parse_pointer += 1;
+            }
+
+            let delta = match Identifier::try_parse(&text[parse_pointer..]) {
+                Ok((i, _)) => i,
+                Err(e) => {
+                    let end = text[parse_pointer..]
+                        .chars()
+                        .take_while(|c| is_identifier_part(c))
+                        .count();
+                    if is_keyword(&text[parse_pointer..parse_pointer + end]) {
+                        end
+                    } else {
+                        return Err(e);
+                    }
+                }
+            };
+            parse_pointer += delta;
+            // lookahead space check
+            let lookahead = skip_whitespace(&text[parse_pointer..]);
+            if let Some(c) = next_char(&text[parse_pointer + lookahead..]) {
+                if !(is_identifier_part(&c) || c.is_number_decimal_digit()) {
+                    break;
+                }
+            } else {
+                // Reached the end of the text, which could be valid for an identifier
+                break;
+            };
+            parse_pointer += lookahead;
+        }
+
+        Ok((
+            parse_pointer,
+            Self {
+                text: &text[start..parse_pointer],
+            },
+        ))
+    }
+
+    /// Not Public because always used in conjuction with
+    /// Regular identifiers or Generalized Identifiers
+    fn try_parse_quoted(text: &'a str) -> ParseResult<Self> {
+        let mut parse_pointer = skip_whitespace(text);
+        if text[parse_pointer..].starts_with(r#"#""#) {
             parse_pointer += 1;
-            true
         } else {
-            false
+            // This is not a quoted identifier
+            return Err(Box::new(ParseError::InvalidInput {
+                pointer: parse_pointer,
+                ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
+            }));
         };
 
         let mut end = parse_pointer;
+        let (delta, name) = Literal::try_parse_text(&text[parse_pointer..])?;
+        end += delta;
+        match name {
+            Literal::Text(txt) => Ok((end, Self { text: txt })),
+            _ => unreachable!(
+                "Only Literal::Text should be a valid return value from try_parse_text"
+            ),
+        }
+    }
 
-        if is_quoted {
-            let (delta, name) = Literal::try_parse_text(&text[parse_pointer..])?;
-            end += delta;
-            match name {
-                Literal::Text(txt) => Ok((end, Self { text: txt })),
-                _ => unreachable!(
-                    "Only Literal::Text should be a valid return value from try_parse_text"
-                ),
-            }
+    /// This generates what is termed in the specs, a "Quoted Identifier" or an "Available Identeifier"
+    /// Keywords are rejected via this code.
+    pub(crate) fn try_parse(text: &'a str) -> ParseResult<Self> {
+        if let Ok(res) = Identifier::try_parse_quoted(text) {
+            return Ok(res);
+        }
+        let mut parse_pointer = skip_whitespace(&text);
+
+        let ident_text = &text[parse_pointer..];
+        let mut end = parse_pointer;
+
+        // Get the identifier range
+        end += {
+            text[parse_pointer..]
+                .char_indices()
+                .take_while(|(i, c)| {
+                    if *i == 0 {
+                        is_identifier_start(c)
+                    } else {
+                        is_identifier_part(c)
+                    }
+                })
+                .count()
+        };
+
+        if end == parse_pointer {
+            // Identifiers must have _SOME_ text
+            Err(Box::new(ParseError::InvalidInput {
+                pointer: parse_pointer,
+                ctx: parse_utils::gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
+            }))
+        } else if is_keyword(&text[parse_pointer..end]) {
+            // Identifers cannot be keywords
+            Err(Box::new(ParseError::InvalidInput {
+                pointer: parse_pointer,
+                ctx: parse_utils::gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
+            }))
         } else {
-            // Get the identifier range
-            end += {
-                text[parse_pointer..]
-                    .char_indices()
-                    .take_while(|(_, c)| is_identifier_part(c))
-                    .count()
-            };
-
-            if end == parse_pointer {
-                // Identifiers must have _SOME_ text
-                Err(Box::new(ParseError::InvalidInput {
-                    pointer: parse_pointer,
-                    ctx: parse_utils::gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
-                }))
-            } else if is_keyword(&text[parse_pointer..end]) {
-                // Identifers cannot be keywords
-                Err(Box::new(ParseError::InvalidInput {
-                    pointer: parse_pointer,
-                    ctx: parse_utils::gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
-                }))
-            } else {
-                Ok((
-                    end,
-                    Self {
-                        text: &text[parse_pointer..end],
-                    },
-                ))
-            }
+            Ok((
+                end,
+                Self {
+                    text: &text[parse_pointer..end],
+                },
+            ))
         }
     }
 
@@ -126,10 +227,43 @@ mod tests {
     }
 
     #[rstest]
+    #[case(r#"99text"#)]
     #[case(r#""this is text""#)]
     fn text_identifier_parser_errors(#[case] input: &str) {
         let out = Identifier::try_parse(input);
         println!("{:?}", &out);
+        match out {
+            Err(_) => assert!(true),
+            _ => assert!(false),
+        }
+    }
+
+    #[rstest]
+    #[case(r##"   #"Malformed name""##, 20, "Malformed name")]
+    #[case(r##"#"Malformed name""##, 17, "Malformed name")]
+    #[case(r##" #"Malformed name"     "##, 18, "Malformed name")]
+    #[case("  9text", 7, "9text")]
+    #[case("9text more text 7text", 21, "9text more text 7text")]
+    #[case("   not text, 'more stuff', yadda yadda", 11, "not text")]
+    fn text_generalized_identifier(
+        #[case] input: &str,
+        #[case] exp_delta: usize,
+        #[case] expected: &str,
+    ) {
+        let (delta, out) = Identifier::try_parse_generalized(input).expect("Unable to parse input");
+        assert_eq!(expected, out.text());
+        assert_eq!(exp_delta, delta);
+    }
+
+    #[rstest]
+    #[case("  {text}")]
+    // NOTE: This is an interesting case. The Spec doesn't make it supre clear, but it appears
+    // according to the strict interpretation that with generalized idents, There is only allowed
+    // ONE decimal digit character
+    #[case("99text")]
+    #[case(r#""this is text""#)]
+    fn text_generalized_identifier_parser_errors(#[case] input: &str) {
+        let out = Identifier::try_parse_generalized(input);
         match out {
             Err(_) => assert!(true),
             _ => assert!(false),
