@@ -13,6 +13,11 @@ pub(crate) struct EachExpression<'a> {
     body: Expression<'a>,
 }
 
+impl<'a> EachExpression<'a> {
+    #[cfg(test)]
+    pub(crate) fn new(body: Expression<'a>) -> Self { Self { body } }
+}
+
 impl<'a> TryParse<'a, Self> for EachExpression<'a> {
     fn try_parse(text: &'a str) -> crate::parser::parse_utils::ParseResult<Self>
     where
