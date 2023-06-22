@@ -167,7 +167,6 @@ impl<'a> Invocation<'a> {
         }
         // Now we need to Parse the contents of the function invocation
         loop {
-            // Check if it is empty function call
             if text[parse_pointer..].chars().next().is_none() {
                 return Err(Box::new(ParseError::InvalidInput
                     {
@@ -175,6 +174,8 @@ impl<'a> Invocation<'a> {
                     ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE) 
                 }));
             }
+
+            // Check if it is close of function call
             if text[parse_pointer..].chars().next().unwrap_or(')') == operators::CLOSE_PAREN {
                 parse_pointer += 1; // Add to account that we have moved one forward
                 break;
@@ -748,6 +749,18 @@ mod tests {
         let (delta, actual) = ParenthesizedExpression::<PrimaryExpression>::try_parse(input_text).expect("Unable to parse input");
 
         assert_eq!(exp_delta, delta);
+        assert_eq!(expected, actual);
+    }
+
+    #[rstest]
+    #[case("[]", Some(0))]
+    #[case("([()])", None)]
+    #[case("([()])[]", Some(6))]
+    fn test_find_next_bracket_on_syntax_level(
+        #[case] input_text: &str,
+        #[case]  expected: Option<usize>,
+    ) {
+        let actual = find_next_bracket_on_syntax_level(input_text);
         assert_eq!(expected, actual);
     }
 }
