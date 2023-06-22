@@ -26,28 +26,29 @@ impl<'a> Identifier<'a> {
         Self { text }
     }
 
+    /// Panics if `text` is not a keyword.
     pub fn from_keyword(text: &'a str) -> Self {
         assert!(is_keyword(text));
         Self { text }
     }
 
     pub(crate) fn try_parse(text: &'a str) -> ParseResult<Self> {
-        let mut start = parse_utils::skip_whitespace(&text);
+        let mut parse_pointer = parse_utils::skip_whitespace(&text);
 
-        let ident_text = &text[start..];
+        let ident_text = &text[parse_pointer..];
         // Check if it is a Quoted Identifier
         let is_quoted = if ident_text.starts_with(r#"#""#) {
             // Can unwrap because we know we have initialized the value already ^^^
-            start += 1;
+            parse_pointer += 1;
             true
         } else {
             false
         };
 
-        let mut end = start;
+        let mut end = parse_pointer;
 
         if is_quoted {
-            let (delta, name) = Literal::try_parse_text(&text[start..])?;
+            let (delta, name) = Literal::try_parse_text(&text[parse_pointer..])?;
             end += delta;
             match name {
                 Literal::Text(txt) => Ok((end, Self { text: txt })),
@@ -58,29 +59,29 @@ impl<'a> Identifier<'a> {
         } else {
             // Get the identifier range
             end += {
-                text[start..]
+                text[parse_pointer..]
                     .char_indices()
                     .take_while(|(_, c)| is_identifier_part(c))
                     .count()
             };
 
-            if end == start {
+            if end == parse_pointer {
                 // Identifiers must have _SOME_ text
                 Err(Box::new(ParseError::InvalidInput {
-                    pointer: start,
-                    ctx: parse_utils::gen_error_ctx(text, start, ERR_CONTEXT_SIZE),
+                    pointer: parse_pointer,
+                    ctx: parse_utils::gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
                 }))
-            } else if is_keyword(&text[start..end]) {
+            } else if is_keyword(&text[parse_pointer..end]) {
                 // Identifers cannot be keywords
                 Err(Box::new(ParseError::InvalidInput {
-                    pointer: start,
-                    ctx: parse_utils::gen_error_ctx(text, start, ERR_CONTEXT_SIZE),
+                    pointer: parse_pointer,
+                    ctx: parse_utils::gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
                 }))
             } else {
                 Ok((
                     end,
                     Self {
-                        text: &text[start..end],
+                        text: &text[parse_pointer..end],
                     },
                 ))
             }
