@@ -5,7 +5,7 @@ use crate::{parser::keywords::is_keyword, ERR_CONTEXT_SIZE};
 
 use super::{
     literal::Literal,
-    parse_utils::{self, ParseError, ParseResult},
+    parse_utils::{self, ParseError, ParseResult, skip_whitespace},
 };
 
 #[inline]
@@ -33,7 +33,7 @@ impl<'a> Identifier<'a> {
     }
 
     pub(crate) fn try_parse(text: &'a str) -> ParseResult<Self> {
-        let mut parse_pointer = parse_utils::skip_whitespace(&text);
+        let mut parse_pointer = skip_whitespace(&text);
 
         let ident_text = &text[parse_pointer..];
         // Check if it is a Quoted Identifier
