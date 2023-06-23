@@ -331,7 +331,6 @@ impl<'a> Literal<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use assert_matches::assert_matches;
     use rstest::rstest;
 
     #[rstest]
@@ -343,7 +342,7 @@ mod tests {
         #[case] expected_delta: usize,
     ) {
         let (delta, out) = Literal::try_parse_logical(input).unwrap();
-        assert_matches!(expected, out);
+        assert_eq!(expected, out);
         assert_eq!(expected_delta, delta);
     }
 
@@ -374,7 +373,7 @@ mod tests {
         #[case] expected_delta: usize,
     ) {
         let (delta, out) = Literal::try_parse_text(input).unwrap();
-        assert!(matches!(expected, out));
+        assert_eq!(expected, out);
         assert_eq!(expected_delta, delta);
         match out {
             Literal::Text(text) => assert_eq!(value, text),
@@ -391,7 +390,7 @@ mod tests {
     )]
     #[case(
         r#"#!"Thi""s is verbaitm text""#,
-        Literal::Verbatim("This is verbaitm text"),
+        Literal::Verbatim(r#"Thi""s is verbaitm text"#),
         r#"Thi""s is verbaitm text"#,
         27
     )]
@@ -409,7 +408,7 @@ mod tests {
         #[case] expected_delta: usize,
     ) {
         let (delta, out) = Literal::try_parse_verbatim_literal(input).unwrap();
-        assert!(matches!(expected, out));
+        assert_eq!(expected, out);
         assert_eq!(expected_delta, delta);
         match out {
             Literal::Verbatim(text) => assert_eq!(value, text),
@@ -435,7 +434,7 @@ mod tests {
     #[case(r#"null"#)]
     fn null_literal_parser(#[case] input: &str) {
         let (_, out) = Literal::try_parse_null(input).unwrap();
-        assert!(matches!(Literal::Null, out));
+        assert_eq!(Literal::Null, out);
     }
 
     #[rstest]
@@ -454,7 +453,7 @@ mod tests {
         #[case] exp_delta: usize,
     ) {
         let (delta, out) = Literal::try_parse_number(input).unwrap();
-        assert!(matches!(expected, out));
+        assert_eq!(expected, out);
         assert_eq!(exp_delta, delta);
         match out {
             Literal::Number(NumberType::Int(v)) => assert_eq!(v, value),
