@@ -13,11 +13,11 @@ use super::{
 fn is_identifier_part(c: &char) -> bool {
     is_letter_character(c)
         || c.is_number_decimal_digit()     // Nd
-        || *c == '_'
         || c.is_punctuation_connector()    // Pc
         || c.is_other_format()             // Cf
         || c.is_mark_spacing_combining()   // Mc
         || c.is_mark_nonspacing()          // Mn
+        || *c == '_'
         || *c == '.' // This is not part of the spec, but it is allowed as a separator between
                      // valid identifier parts
 }
