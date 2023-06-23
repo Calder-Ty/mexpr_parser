@@ -1,21 +1,21 @@
 use std::vec;
 
-use serde::{Serialize, __private::de::IdentifierDeserializer};
+use serde::Serialize;
 
 use crate::{
     parser::{
         core::TryParse,
         identifier::Identifier,
-        keywords, operators,
+        operators,
         parse_utils::{
-            followed_by_valid_seperator, followed_by_whitespace, gen_error_ctx, next_char,
+            followed_by_whitespace, gen_error_ctx, next_char,
             skip_whitespace, ParseResult,
         },
     },
     ParseError, ERR_CONTEXT_SIZE,
 };
 
-use super::primary_expressions::{PrimaryExpression, self};
+use super::primary_expressions::PrimaryExpression;
 
 pub(crate) const PRIMITIVE_TYPES: [&str; 18] = [
     "any",

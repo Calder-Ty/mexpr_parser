@@ -5,7 +5,7 @@ mod primary_expressions;
 mod record;
 mod type_expressions;
 
-use self::{each::EachExpression, logical::AdditiveExpression, type_expressions::Type};
+use self::{each::EachExpression, logical::AdditiveExpression};
 
 use super::{
     core::TryParse,
@@ -21,7 +21,6 @@ use serde::Serialize;
 pub(crate) enum Expression<'a> {
     Let(LetExpression<'a>),
     Primary(PrimaryExpression<'a>),
-    Type(Type<'a>),
     Logical(AdditiveExpression<'a>),
     Each(Box<EachExpression<'a>>),
 }

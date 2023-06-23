@@ -47,20 +47,6 @@ pub(crate) struct FunctionExpression<'a> {
     body: Expression<'a>,
 }
 
-impl<'a> FunctionExpression<'a> {
-    #[cfg(test)]
-    pub(crate) fn new(
-        parameters: FunctionParameters<'a>,
-        return_type: Option<Assertion<'a>>,
-        body: Expression<'a>,
-    ) -> Self {
-        Self {
-            parameters,
-            return_type,
-            body,
-        }
-    }
-}
 
 impl<'a> TryParse<'a, Self> for FunctionExpression<'a> {
     fn try_parse(text: &'a str) -> ParseResult<Self>
@@ -130,12 +116,6 @@ pub(crate) struct FunctionParameters<'a> {
     optional: Vec<FuncParameter<'a>>,
 }
 
-impl<'a> FunctionParameters<'a> {
-    #[cfg(test)]
-    pub(crate) fn new(fixed: Vec<FuncParameter<'a>>, optional: Vec<FuncParameter<'a>>) -> Self {
-        Self { fixed, optional }
-    }
-}
 
 impl<'a> TryParse<'a, Self> for FunctionParameters<'a> {
     fn try_parse(text: &'a str) -> ParseResult<Self>
@@ -198,12 +178,6 @@ pub(crate) struct FuncParameter<'a> {
     param_type: Option<Assertion<'a>>,
 }
 
-impl<'a> FuncParameter<'a> {
-    #[cfg(test)]
-    pub(crate) fn new(name: Identifier<'a>, param_type: Option<Assertion<'a>>) -> Self {
-        Self { name, param_type }
-    }
-}
 
 impl<'a> TryParse<'a, Self> for FuncParameter<'a> {
     fn try_parse(text: &'a str) -> ParseResult<Self> {
@@ -242,12 +216,6 @@ pub(crate) struct Assertion<'a> {
     value: &'a str,
 }
 
-impl<'a> Assertion<'a> {
-    #[cfg(test)]
-    pub(crate) fn new(value: &'a str) -> Self {
-        Self { value }
-    }
-}
 
 impl<'a> TryParse<'a, Self> for Assertion<'a> {
     fn try_parse(text: &'a str) -> ParseResult<Self> {
@@ -267,8 +235,8 @@ impl<'a> TryParse<'a, Self> for Assertion<'a> {
         parse_pointer += skip_whitespace(&text[parse_pointer..]);
 
         // nullable-primitive-type allows the text "nullable" to appear
-        if (text[parse_pointer..].starts_with("nullable")
-            && followed_by_whitespace(&text[parse_pointer..], 8))
+        if text[parse_pointer..].starts_with("nullable")
+            && followed_by_whitespace(&text[parse_pointer..], 8)
         {
             parse_pointer += 8;
             parse_pointer += skip_whitespace(&text[parse_pointer..])

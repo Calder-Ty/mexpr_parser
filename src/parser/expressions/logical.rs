@@ -1,11 +1,9 @@
-use std::todo;
-
 use serde::Serialize;
 
 use crate::{
     parser::{
         keywords,
-        operators::{self, OPEN_BRACE_STR},
+        operators,
         parse_utils::{
             followed_by_valid_seperator, followed_by_whitespace, gen_error_ctx, next_char,
             skip_whitespace, ParseResult,
@@ -14,7 +12,7 @@ use crate::{
     ParseError, ERR_CONTEXT_SIZE,
 };
 
-use super::type_expressions::{Type, TypeExpression};
+use super::type_expressions::TypeExpression;
 
 /// logical-or-expression:
 ///       logical-and-expression
@@ -213,8 +211,6 @@ impl<'a> UnaryExpression<'a> {
 }
 
 impl<'a> Unary<'a> {
-    #[cfg(new)]
-    pub(crate) fn new(operator: &'a str, expr: Box<UnaryExpression<'a>>) -> Self { Self { operator, expr } }
 
     pub fn try_parse(text: &'a str) -> ParseResult<Self> {
         let mut parse_pointer = skip_whitespace(text);

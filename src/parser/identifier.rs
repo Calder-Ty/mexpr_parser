@@ -2,7 +2,7 @@ use serde::Serialize;
 use std::unreachable;
 use unicode_categories::UnicodeCategories;
 
-use crate::{parser::keywords::is_keyword, try_parse, ERR_CONTEXT_SIZE};
+use crate::{parser::keywords::is_keyword, ERR_CONTEXT_SIZE};
 
 use super::{
     literal::Literal,
@@ -150,9 +150,8 @@ impl<'a> Identifier<'a> {
         if let Ok(res) = Identifier::try_parse_quoted(text) {
             return Ok(res);
         }
-        let mut parse_pointer = skip_whitespace(&text);
+        let parse_pointer = skip_whitespace(&text);
 
-        let ident_text = &text[parse_pointer..];
         let mut end = parse_pointer;
 
         // Get the identifier range
@@ -191,6 +190,7 @@ impl<'a> Identifier<'a> {
         }
     }
 
+    #[cfg(test)]
     pub fn text(&self) -> &str {
         // Eventually fix this with Valid States
         &self.text
