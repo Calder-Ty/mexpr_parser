@@ -88,7 +88,7 @@ impl<'a> Identifier<'a> {
                 Err(e) => {
                     let end = text[parse_pointer..]
                         .chars()
-                        .take_while(|c| is_identifier_part(c))
+                        .take_while(is_identifier_part)
                         .count();
                     if is_keyword(&text[parse_pointer..parse_pointer + end]) {
                         end
@@ -150,7 +150,7 @@ impl<'a> Identifier<'a> {
         if let Ok(res) = Identifier::try_parse_quoted(text) {
             return Ok(res);
         }
-        let parse_pointer = skip_whitespace(&text);
+        let parse_pointer = skip_whitespace(text);
 
         let mut end = parse_pointer;
 
@@ -168,19 +168,14 @@ impl<'a> Identifier<'a> {
                 .count()
         };
 
-        if end == parse_pointer {
+        if end == parse_pointer || is_keyword(&text[parse_pointer..end]){
             // Identifiers must have _SOME_ text
-            Err(Box::new(ParseError::InvalidInput {
-                pointer: parse_pointer,
-                ctx: parse_utils::gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
-            }))
-        } else if is_keyword(&text[parse_pointer..end]) {
             // Identifers cannot be keywords
             Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
                 ctx: parse_utils::gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
             }))
-        } else {
+        }  else {
             Ok((
                 end,
                 Self {

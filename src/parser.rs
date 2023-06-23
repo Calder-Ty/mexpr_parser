@@ -34,19 +34,17 @@ pub(crate) mod parse_utils {
     }
 
     pub(crate) fn gen_error_ctx(text: &str, pointer: usize, size: usize) -> String {
-        let start: usize;
-        let end: usize;
-        if pointer < size {
-            start = 0;
+        let start: usize = if pointer < size {
+            0
         } else {
-            start = pointer - size
-        }
+            pointer - size
+        };
 
-        if pointer + size > text.len() {
-            end = text.len();
+        let end: usize = if pointer + size > text.len() {
+            text.len()
         } else {
-            end = pointer + size;
-        }
+            pointer + size
+        };
 
         let ctx = &text[start..end];
         let padding = "-".repeat(pointer - start + 1); // +1 accounts for the quotes added in
@@ -60,14 +58,14 @@ pub(crate) mod parse_utils {
 
     #[inline]
     pub fn followed_by_valid_seperator(text: &str, len: usize) -> bool {
-        let next = text.chars().skip(len).next().unwrap_or('_');
+        let next = text.chars().nth(len).unwrap_or('_');
         // Valid Separator
         next.is_whitespace() || next == ','
     }
 
     #[inline]
     pub fn followed_by_whitespace(text: &str, len: usize) -> bool {
-        let next = text.chars().skip(len).next().unwrap_or('_');
+        let next = text.chars().nth(len).unwrap_or('_');
         // Valid Separator
         next.is_whitespace()
     }
