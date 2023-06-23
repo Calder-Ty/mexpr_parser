@@ -22,12 +22,14 @@ fn is_identifier_part(c: &char) -> bool {
                      // valid identifier parts
 }
 
+#[inline]
 fn is_identifier_start(c: &char) -> bool {
     is_letter_character(c) || *c == '_'
 }
 
 // The definition of "Letter Character" given by the Microsoft Spec is more restrictive
 // than given by the `is_letter` method in unicode_categories
+#[inline]
 fn is_letter_character(c: &char) -> bool {
     c.is_letter_modifier()                 // Lm
         || c.is_letter_uppercase()         // Lu
