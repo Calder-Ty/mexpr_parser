@@ -19,6 +19,7 @@ pub const OPEN_BRACKET: char = '[';
 pub const OPEN_BRACKET_STR: &str = "[";
 
 pub const CLOSE_BRACKET: char = ']';
+#[allow(dead_code)]
 pub const CLOSE_BRACKET_STR: &str = "]";
 
 
@@ -26,14 +27,18 @@ pub const OPEN_BRACE: char = '{';
 pub const OPEN_BRACE_STR: &str = "{";
 
 pub const CLOSE_BRACE: char = '}';
+#[allow(dead_code)]
 pub const CLOSE_BRACE_STR: &str = "}";
 
 
 pub const OPEN_PAREN: char = '(';
+#[allow(dead_code)]
 pub const OPEN_PAREN_STR: &str = "(";
 
 pub const CLOSE_PAREN: char = ')';
+#[allow(dead_code)]
 pub const CLOSE_PAREN_STR: &str = ")";
 
 pub const EQUAL: char = '=';
+#[allow(dead_code)]
 pub const EQUAL_STR: &str = "=";
