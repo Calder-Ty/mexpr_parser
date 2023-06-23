@@ -20,6 +20,7 @@ use super::type_expressions::TypeExpression;
 /// logical-and-expression:
 ///       is-expression
 ///       logical-and-expression and is-expression
+#[allow(dead_code)]
 struct LogicalExpression {}
 
 /// is-expression:
@@ -27,17 +28,20 @@ struct LogicalExpression {}
 ///   is-expression is nullable-primitive-type
 /// nullable-primitive-type:
 ///   nullable[opt] primitive-type
+#[allow(dead_code)]
 struct IsExpression {}
 
 /// as-expression:
 ///   equality-expression
 ///   as-expression as nullable-primitive-type
+#[allow(dead_code)]
 struct AsExpression {}
 
 /// equality-expression:
 ///    relational-expression
 ///    relational-expression = equality-expression
 ///    relational-expression <> equality-expression
+#[allow(dead_code)]
 struct EqualityExpression {}
 
 /// relational-expression:
@@ -46,6 +50,7 @@ struct EqualityExpression {}
 ///     additive-expression > relational-expression
 ///     additive-expression <= relational-expression
 ///     additive-expression >= relational-expression
+#[allow(dead_code)]
 struct RelationalExpression {}
 
 /// These are the Arithmetic expressions
