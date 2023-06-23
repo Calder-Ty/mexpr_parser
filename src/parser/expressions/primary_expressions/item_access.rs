@@ -53,7 +53,7 @@ impl<'a> TryParse<'a, Self> for ItemAccess<'a> {
         parse_pointer += delta;
         parse_pointer += skip_whitespace(&text[parse_pointer..]);
 
-        if !(next_char(&text[parse_pointer..]).unwrap_or(' ') == operators::OPEN_BRACE) {
+        if next_char(&text[parse_pointer..]).unwrap_or(' ') != operators::OPEN_BRACE {
             return Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
                 ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
@@ -65,8 +65,8 @@ impl<'a> TryParse<'a, Self> for ItemAccess<'a> {
         parse_pointer += delta;
         let lookahead_pointer = skip_whitespace(&text[parse_pointer..]);
 
-        if !(next_char(&text[parse_pointer + lookahead_pointer..]).unwrap_or(' ')
-            == operators::CLOSE_BRACE)
+        if next_char(&text[parse_pointer + lookahead_pointer..]).unwrap_or(' ')
+            != operators::CLOSE_BRACE
         {
             return Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,

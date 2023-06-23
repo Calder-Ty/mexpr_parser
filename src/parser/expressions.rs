@@ -95,17 +95,16 @@ impl<'a> LetExpression<'a> {
         let mut parse_pointer = skip_whitespace(text);
         let let_sep = &text[parse_pointer..]
             .chars()
-            .skip(3)
-            .next()
+            .nth(keywords::LET.len())
             .unwrap_or('_')
             .is_whitespace();
-        if !(text[parse_pointer..].starts_with("let") && *let_sep) {
+        if !(text[parse_pointer..].starts_with(keywords::LET) && *let_sep) {
             return Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
                 ctx: parse_utils::gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
             }));
         }
-        parse_pointer += 4; // skip 'let '
+        parse_pointer += keywords::LET.len() + 1; // skip 'let '
 
         let mut variable_list = vec![];
         loop {
@@ -116,7 +115,7 @@ impl<'a> LetExpression<'a> {
             if text[parse_pointer..].chars().next().unwrap_or(' ') != ',' {
                 break;
             }
-            parse_pointer += 1 // Skip the ','
+            parse_pointer += operators::COMMA_STR.len();
         }
 
         // Now for the In part
@@ -124,17 +123,16 @@ impl<'a> LetExpression<'a> {
 
         let in_sep = &text[parse_pointer..]
             .chars()
-            .skip(2)
-            .next()
+            .nth(keywords::IN.len())
             .unwrap_or('_')
             .is_whitespace();
-        if !(text[parse_pointer..].starts_with("in") && *in_sep) {
+        if !(text[parse_pointer..].starts_with(keywords::IN) && *in_sep) {
             return Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
                 ctx: parse_utils::gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
             }));
         }
-        parse_pointer += 3; // Skip 'in '
+        parse_pointer += keywords::IN.len() + 1; // Skip 'in '
                             // I Don't care about the In expression right now
         let (delta, _) = Expression::try_parse(&text[parse_pointer..])?;
 

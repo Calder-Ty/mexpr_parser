@@ -1,7 +1,7 @@
 use crate::ERR_CONTEXT_SIZE;
 
 use super::{
-    keywords,
+    keywords, operators,
     parse_utils::{self, followed_by_valid_seperator, ParseError, ParseResult},
 };
 use serde::Serialize;
@@ -74,7 +74,7 @@ impl<'a> Literal<'a> {
     pub(crate) fn try_parse_text(text: &'a str) -> ParseResult<Self> {
         // is there the initial `"`?
         let mut text_start = parse_utils::skip_whitespace(text);
-        if text.chars().nth(text_start).unwrap_or(' ') == '"' {
+        if text.chars().nth(text_start).unwrap_or(' ') == operators::DOUBLE_QUOTE {
             // Find the terminal `"`? Remember Escapes!
             text_start += 1;
             let mut in_escape = false;
@@ -89,9 +89,11 @@ impl<'a> Literal<'a> {
                 }
                 if !in_escape {
                     //check for escape sequences
-                    if c == '"' {
+                    if c == operators::DOUBLE_QUOTE {
                         // Possibly End?
-                        if text.chars().nth(text_start + i + 1).unwrap_or(' ') == '"' {
+                        if text.chars().nth(text_start + i + 1).unwrap_or(' ')
+                            == operators::DOUBLE_QUOTE
+                        {
                             skip = true;
                             continue;
                         }
@@ -99,14 +101,17 @@ impl<'a> Literal<'a> {
                         break;
                     }
                     // lookahead to validate escape
-                    if c == '#' && text.chars().nth(text_start + i + 1).unwrap_or(' ') == '(' {
+                    if c == '#'
+                        && text.chars().nth(text_start + i + 1).unwrap_or(' ')
+                            == operators::OPEN_PAREN
+                    {
                         in_escape = true;
                         skip = true;
                         continue;
                     }
                 } else {
                     // TODO: Validate the escape characters are valid
-                    if c == ')' {
+                    if c == operators::CLOSE_PAREN {
                         in_escape = false;
                     }
                     continue;
@@ -129,28 +134,26 @@ impl<'a> Literal<'a> {
     }
 
     fn try_parse_null(text: &'a str) -> ParseResult<Self> {
-        let text_start = parse_utils::skip_whitespace(text);
+        let parse_pointer = parse_utils::skip_whitespace(text);
         // What if Null is the Final entity?
-        if text[text_start..].len() == 4 {
-            if &text[text_start..=text_start + 3] == "null" {
-                // Still Plus 4 because we want the next thing to point to the end of the string,
-                // not "l" (i.e) the value we pass out should == len of the text
-                assert!(text.len() == text_start + 4);
-                Ok((text_start + 4, Literal::Null))
+        if text[parse_pointer..].len() == keywords::NULL.len() {
+            if &text[parse_pointer..parse_pointer + keywords::NULL.len()] == keywords::NULL {
+                assert!(text.len() == parse_pointer + keywords::NULL.len());
+                Ok((parse_pointer + keywords::NULL.len(), Literal::Null))
             } else {
                 Err(Box::new(ParseError::InvalidInput {
-                    pointer: text_start,
-                    ctx: parse_utils::gen_error_ctx(text, text_start, ERR_CONTEXT_SIZE),
+                    pointer: parse_pointer,
+                    ctx: parse_utils::gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
                 }))
             }
-        } else if text[text_start..].starts_with(keywords::NULL)
-            && followed_by_valid_seperator(&text[text_start..], 4)
+        } else if text[parse_pointer..].starts_with(keywords::NULL)
+            && followed_by_valid_seperator(&text[parse_pointer..], keywords::NULL.len())
         {
-            Ok((text_start + 4, Literal::Null))
+            Ok((parse_pointer + keywords::NULL.len(), Literal::Null))
         } else {
             Err(Box::new(ParseError::InvalidInput {
-                pointer: text_start,
-                ctx: parse_utils::gen_error_ctx(text, text_start, ERR_CONTEXT_SIZE),
+                pointer: parse_pointer,
+                ctx: parse_utils::gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
             }))
         }
     }
@@ -431,6 +434,7 @@ mod tests {
     #[rstest]
     #[case(r#" null "#)]
     #[case(r#"null "#)]
+    #[case(r#"null"#)]
     #[case(r#"null"#)]
     fn null_literal_parser(#[case] input: &str) {
         let (_, out) = Literal::try_parse_null(input).unwrap();

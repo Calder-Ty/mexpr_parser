@@ -103,10 +103,8 @@ fn arg_lookahead(text: &str) -> bool {
 
     if text[lookahead_pointer..].chars().next().unwrap_or(')') == ')' {
         true
-    } else if text[lookahead_pointer..].chars().next().unwrap_or(',') == ',' {
-        true
     } else {
-        false
+        text[lookahead_pointer..].chars().next().unwrap_or(',') == ',' 
     }
 }
 

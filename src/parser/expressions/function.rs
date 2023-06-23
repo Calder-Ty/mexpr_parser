@@ -12,7 +12,7 @@ use crate::parser::parse_utils::{
 };
 use crate::{ParseError, ERR_CONTEXT_SIZE};
 
-use super::{Expression, type_expressions::PRIMITIVE_TYPES};
+use super::{type_expressions::PRIMITIVE_TYPES, Expression};
 
 /// function-expression:
 /// `(` parameter-listopt `)` return-type[opt] `=>` function-body
@@ -47,7 +47,6 @@ pub(crate) struct FunctionExpression<'a> {
     body: Expression<'a>,
 }
 
-
 impl<'a> TryParse<'a, Self> for FunctionExpression<'a> {
     fn try_parse(text: &'a str) -> ParseResult<Self>
     where
@@ -56,7 +55,7 @@ impl<'a> TryParse<'a, Self> for FunctionExpression<'a> {
         let mut parse_pointer = skip_whitespace(text);
 
         // Must start with open `(`
-        if !(next_char(&text[parse_pointer..]).unwrap_or(' ') == '(') {
+        if next_char(&text[parse_pointer..]).unwrap_or(' ') != '(' {
             return Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
                 ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
@@ -68,7 +67,7 @@ impl<'a> TryParse<'a, Self> for FunctionExpression<'a> {
         parse_pointer += skip_whitespace(&text[parse_pointer..]);
 
         // Close Params with `)`
-        if !(next_char(&text[parse_pointer..]).unwrap_or(' ') == ')') {
+        if next_char(&text[parse_pointer..]).unwrap_or(' ') != ')' {
             return Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
                 ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
@@ -116,7 +115,6 @@ pub(crate) struct FunctionParameters<'a> {
     optional: Vec<FuncParameter<'a>>,
 }
 
-
 impl<'a> TryParse<'a, Self> for FunctionParameters<'a> {
     fn try_parse(text: &'a str) -> ParseResult<Self>
     where
@@ -127,14 +125,9 @@ impl<'a> TryParse<'a, Self> for FunctionParameters<'a> {
 
         let mut parse_pointer = skip_whitespace(text);
         // First fixed
-        loop {
-            match FuncParameter::try_parse(&text[parse_pointer..]) {
-                Ok((delta, param)) => {
-                    parse_pointer += delta;
-                    fixed.push(param);
-                }
-                Err(_) => break, // That's OK, we don't need fixed params
-            };
+        while let Ok((delta, param)) = FuncParameter::try_parse(&text[parse_pointer..]) {
+            parse_pointer += delta;
+            fixed.push(param);
 
             // Lookahead for ,
             let lookahead_pointer = skip_whitespace(&text[parse_pointer..]);
@@ -178,7 +171,6 @@ pub(crate) struct FuncParameter<'a> {
     param_type: Option<Assertion<'a>>,
 }
 
-
 impl<'a> TryParse<'a, Self> for FuncParameter<'a> {
     fn try_parse(text: &'a str) -> ParseResult<Self> {
         let mut parse_pointer = skip_whitespace(text);
@@ -215,7 +207,6 @@ impl<'a> TryParse<'a, Self> for FuncParameter<'a> {
 pub(crate) struct Assertion<'a> {
     value: &'a str,
 }
-
 
 impl<'a> TryParse<'a, Self> for Assertion<'a> {
     fn try_parse(text: &'a str) -> ParseResult<Self> {

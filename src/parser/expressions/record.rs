@@ -64,7 +64,7 @@ impl<'a> Record<'a> {
             parse_pointer += delta;
             parse_pointer += skip_whitespace(&text[parse_pointer..]);
 
-            if !(text[parse_pointer..].chars().next().unwrap_or(' ') == '=') {
+            if text[parse_pointer..].chars().next().unwrap_or(' ') != '=' {
                 // The next character must be a '='.
                 return Err(Box::new(ParseError::InvalidInput {
                     pointer: parse_pointer,
@@ -86,7 +86,7 @@ impl<'a> Record<'a> {
                 break;
             }
 
-            if !(text[parse_pointer..].chars().next().unwrap() == ',') {
+            if !text[parse_pointer..].starts_with(',') {
                 return Err(Box::new(ParseError::InvalidInput {
                     pointer: parse_pointer,
                     ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
@@ -95,7 +95,7 @@ impl<'a> Record<'a> {
             parse_pointer += 1;
         }
 
-        return Ok((parse_pointer, Self { fields }));
+        Ok((parse_pointer, Self { fields }))
     }
 }
 

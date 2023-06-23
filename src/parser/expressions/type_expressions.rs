@@ -103,10 +103,10 @@ impl<'a> PrimaryType<'a> {
         if let Ok((i, v)) = PrimitiveType::try_parse(&text[parse_pointer..]) {
             return Ok((parse_pointer + i, PrimaryType::PrimitiveType(v)));
         }
-        return Err(Box::new(ParseError::InvalidInput {
+        Err(Box::new(ParseError::InvalidInput {
             pointer: parse_pointer,
             ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
-        }));
+        }))
     }
 }
 

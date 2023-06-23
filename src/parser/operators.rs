@@ -1,4 +1,4 @@
-//! Constants of operators in
+//! Constants for common operators
 
 pub const STAR: char = '*';
 pub const STAR_STR: &str = "*";
@@ -42,3 +42,7 @@ pub const CLOSE_PAREN_STR: &str = ")";
 pub const EQUAL: char = '=';
 #[allow(dead_code)]
 pub const EQUAL_STR: &str = "=";
+
+pub const DOUBLE_QUOTE: char = '"';
+#[allow(dead_code)]
+pub const DOUBLE_QUOTE_STR: &str = r#"""#;

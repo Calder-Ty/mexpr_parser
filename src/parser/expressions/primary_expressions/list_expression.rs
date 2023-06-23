@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::{parser::{expressions::Expression, parse_utils::{ParseResult, skip_whitespace, next_char, self, gen_error_ctx}}, ParseError, ERR_CONTEXT_SIZE};
+use crate::{parser::{expressions::Expression, parse_utils::{ParseResult, skip_whitespace, next_char, self, gen_error_ctx}, operators}, ParseError, ERR_CONTEXT_SIZE};
 
 
 #[derive(Debug, Serialize, PartialEq)]
@@ -13,7 +13,7 @@ impl<'a> ListExpression<'a> {
     pub fn try_parse(text: &'a str) -> ParseResult<Self> {
         let mut parse_pointer = skip_whitespace(text);
 
-        if next_char(&text[parse_pointer..]).unwrap_or(' ') != '{' {
+        if next_char(&text[parse_pointer..]).unwrap_or(' ') != operators::OPEN_BRACE {
             return Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
                 ctx: parse_utils::gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
@@ -26,11 +26,11 @@ impl<'a> ListExpression<'a> {
             parse_pointer += delta + skip_whitespace(&text[parse_pointer + delta..]);
             elements.push(el);
 
-            if text[parse_pointer..].chars().next().unwrap_or('}') == '}' {
+            if text[parse_pointer..].chars().next().unwrap_or(operators::CLOSE_BRACE) == operators::CLOSE_BRACE {
                 parse_pointer += 1; // Add to account that we have moved one forward
                 break;
             }
-            if text[parse_pointer..].chars().next().unwrap_or(',') != ',' {
+            if text[parse_pointer..].chars().next().unwrap_or(operators::COMMA) != operators::COMMA {
                 eprintln!("This Is not a regular Primary Expression, halting!");
                 panic!(
                     "This is unexpected:\n{0}",

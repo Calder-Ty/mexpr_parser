@@ -69,7 +69,7 @@ impl<'a> TryParse<'a, Self> for FieldAccess<'a> {
 
         parse_pointer += delta;
 
-        if !(next_char(&text[parse_pointer..]).unwrap_or(' ') == operators::OPEN_BRACKET) {
+        if next_char(&text[parse_pointer..]).unwrap_or(' ') != operators::OPEN_BRACKET {
             return Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
                 ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
@@ -82,7 +82,7 @@ impl<'a> TryParse<'a, Self> for FieldAccess<'a> {
         parse_pointer += delta; // Advance past the `]`
         parse_pointer += skip_whitespace(&text[parse_pointer..]);
 
-        if !(next_char(&text[parse_pointer..]).unwrap_or(' ') == operators::CLOSE_BRACKET) {
+        if next_char(&text[parse_pointer..]).unwrap_or(' ') != operators::CLOSE_BRACKET {
             return Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
                 ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
