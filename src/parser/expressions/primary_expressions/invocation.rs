@@ -68,9 +68,8 @@ impl<'a> Invocation<'a> {
             let (delta, arg) =
                 Expression::try_parse_with_lookahead(&text[parse_pointer..], arg_lookahead)?;
             args.push(arg);
-            parse_pointer = parse_pointer
-                + delta
-                + parse_utils::skip_whitespace(&text[parse_pointer + delta..]);
+            parse_pointer += delta;
+            parse_pointer = parse_pointer + parse_utils::skip_whitespace(&text[parse_pointer..]);
 
             // If we come to the end of the text of the invocation, we want
             // to end
@@ -83,8 +82,9 @@ impl<'a> Invocation<'a> {
                     "This is unexpected:\n{0}",
                     gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE)
                 )
+            } else if next_char(&text[parse_pointer..]).is_some()  {
+                parse_pointer += 1; // Skip the comma
             }
-            parse_pointer += 1; // Skip the comma
         }
 
         Ok((
