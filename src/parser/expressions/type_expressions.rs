@@ -10,7 +10,7 @@ use crate::{
         parse_utils::{
             followed_by_whitespace, gen_error_ctx, next_char,
             skip_whitespace, ParseResult,
-        },
+        }, keywords,
     },
     ParseError, ERR_CONTEXT_SIZE,
 };
@@ -56,8 +56,8 @@ impl<'a> TryParse<'a, Self> for TypeExpression<'a> {
     {
         let mut parse_pointer = skip_whitespace(text);
 
-        if text[parse_pointer..].starts_with("type")
-            && followed_by_whitespace(&text[parse_pointer..], 4)
+        if text[parse_pointer..].starts_with(keywords::TYPE)
+            && followed_by_whitespace(&text[parse_pointer..], keywords::TYPE.len())
         {
             parse_pointer += 4;
             let (delta, val) = PrimaryType::try_parse(&text[parse_pointer..])?;
