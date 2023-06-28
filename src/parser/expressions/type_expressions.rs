@@ -1,4 +1,4 @@
-use std::vec;
+use std::{vec, marker::PhantomData};
 
 use serde::Serialize;
 
@@ -90,12 +90,16 @@ impl<'a> Type<'a> {
 pub(crate) enum PrimaryType<'a> {
     PrimitiveType(PrimitiveType<'a>),
     TableType(TableType<'a>),
+    Nullable(Box<Type<'a>>),
 }
 
 impl<'a> PrimaryType<'a> {
     pub fn try_parse(text: &'a str) -> ParseResult<Self> {
         let parse_pointer = skip_whitespace(text);
 
+        if let Ok((i, v)) = Nullable::<Type>::try_parse(&text[parse_pointer..]) {
+            return Ok((parse_pointer + i, PrimaryType::Nullable(Box::new(v))));
+        }
         if let Ok((i, v)) = TableType::try_parse(&text[parse_pointer..]) {
             return Ok((parse_pointer + i, PrimaryType::TableType(v)));
         }
@@ -148,6 +152,36 @@ impl<'a> TryParse<'a, Self> for PrimitiveType<'a> {
         }))
     }
 }
+
+#[derive(Debug, Serialize, PartialEq)]
+struct Nullable<T> {
+    _phantom: PhantomData<T>,
+}
+
+impl<'a, T> TryParse<'a, Type<'a>> for Nullable<T> {
+
+    fn try_parse(text: &'a str) -> ParseResult<Type<'a>>
+        where
+            Self: Sized {
+        let mut parse_pointer = skip_whitespace(text);
+        if !(text[parse_pointer..].starts_with("nullable") && followed_by_whitespace(&text[parse_pointer..], 8)) {
+            return Err(
+                Box::new(ParseError::InvalidInput { 
+                    pointer: parse_pointer, 
+                    ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE) 
+                }
+            ));
+        };
+        parse_pointer += 8;
+
+        let (delta, type_) = Type::try_parse(&text[parse_pointer..])?;
+        parse_pointer += delta;
+        return Ok((parse_pointer, type_));
+    }
+
+}
+
+
 
 #[derive(Debug, Serialize, PartialEq)]
 pub(crate) struct TableType<'a> {
@@ -262,6 +296,16 @@ mod tests {
     use rstest::rstest;
 
     #[rstest]
+
+    #[case("    type nullable text ", 22,
+        TypeExpression::PrimaryType(
+            PrimaryType::Nullable(
+                Box::new(
+                    Type::PrimaryType(PrimaryType::PrimitiveType( PrimitiveType {  text: "text"}))
+                )
+            )
+        )
+    )]
     #[case("    type null", 13, TypeExpression::PrimaryType(PrimaryType::PrimitiveType(PrimitiveType {  text: "null"})))]
     #[case("    type datetime  ", 17, TypeExpression::PrimaryType( PrimaryType::PrimitiveType(PrimitiveType {  text: "datetime"})))]
     fn test_type_expression(
