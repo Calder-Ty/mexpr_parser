@@ -21,6 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Bugfixes
 
 
-## [0.1.0] - 2023-06-21
+## [v0.1.0] - 2023-06-28
+
+[Release Page](https://github.com/Calder-Ty/mexpr_parser/releases/tag/v0.1.0)
 
 - First Release, Support large part of the M Expression Spec
