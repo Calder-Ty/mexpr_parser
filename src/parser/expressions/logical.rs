@@ -2,17 +2,17 @@ use serde::Serialize;
 
 use crate::{
     parser::{
-        keywords,
-        operators,
+        core::TryParse,
+        keywords, operators,
         parse_utils::{
             followed_by_valid_seperator, followed_by_whitespace, gen_error_ctx, next_char,
             skip_whitespace, ParseResult,
-        }, core::TryParse,
+        },
     },
     ParseError, ERR_CONTEXT_SIZE,
 };
 
-use super::type_expressions::TypeExpression;
+use super::type_expressions::{PrimaryType, TypeExpression};
 
 /// logical-or-expression:
 ///       logical-and-expression
@@ -34,15 +34,121 @@ struct IsExpression {}
 /// as-expression:
 ///   equality-expression
 ///   as-expression as nullable-primitive-type
-#[allow(dead_code)]
-struct AsExpression {}
+#[derive(Debug, Serialize, PartialEq)]
+enum AsExpression<'a> {
+    Equality(EqualityExpression<'a>),
+    WithNullable(Box<AsExressionWithNullablePrimitive<'a>>),
+}
+
+impl<'a> TryParse<'a, Self> for AsExpression<'a> {
+    fn try_parse(text: &'a str) -> ParseResult<Self>
+    where
+        Self: Sized,
+    {
+        if let Ok((delta, i)) = EqualityExpression::try_parse(text) {
+            return Ok((delta, AsExpression::Equality(i)));
+        };
+        if let Ok((delta, i)) = AsExressionWithNullablePrimitive::try_parse(text) {
+            return Ok((delta, AsExpression::WithNullable(Box::new(i))));
+        };
+        Err(Box::new(ParseError::InvalidInput {
+            pointer: 0,
+            ctx: gen_error_ctx(text, 0, ERR_CONTEXT_SIZE),
+        }))
+    }
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+struct AsExressionWithNullablePrimitive<'a> {
+    expr: AsExpression<'a>,
+    nullable: PrimaryType<'a>,
+}
+
+impl<'a> TryParse<'a, Self> for AsExressionWithNullablePrimitive<'a> {
+    fn try_parse(text: &'a str) -> ParseResult<Self>
+    where
+        Self: Sized,
+    {
+        let mut parse_pointer = skip_whitespace(text);
+
+        let (delta, expr) = AsExpression::try_parse(&text[parse_pointer..])?;
+
+        parse_pointer += delta;
+        parse_pointer += skip_whitespace(&text[parse_pointer..]);
+
+        if !(text[parse_pointer..].starts_with(keywords::AS)
+            && followed_by_whitespace(&text[parse_pointer..], keywords::AS.len()))
+        {
+            return Err(Box::new(ParseError::InvalidInput {
+                pointer: parse_pointer,
+                ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
+            }));
+        };
+
+
+        let (delta, nullable) = PrimaryType::try_parse_primitive(&text[parse_pointer..])?;
+        parse_pointer += delta;
+
+        Ok((parse_pointer, Self { expr, nullable }))
+    }
+}
 
 /// equality-expression:
 ///    relational-expression
 ///    relational-expression = equality-expression
 ///    relational-expression <> equality-expression
-#[allow(dead_code)]
-struct EqualityExpression {}
+#[derive(Debug, PartialEq, Serialize)]
+pub(crate) struct EqualityExpression<'a> {
+    rhs: RelationalExpression<'a>,
+    lhs: Option<Lhs<'a, Box<EqualityExpression<'a>>>>,
+}
+
+impl<'a> EqualityExpression<'a> {
+    #[cfg(test)]
+    pub(crate) fn new(
+        rhs: RelationalExpression<'a>,
+        lhs: Option<Lhs<'a, Box<EqualityExpression<'a>>>>,
+    ) -> Self {
+        Self { rhs, lhs }
+    }
+}
+
+impl<'a> TryParse<'a, Self> for EqualityExpression<'a> {
+    fn try_parse(text: &'a str) -> ParseResult<Self>
+    where
+        Self: Sized,
+    {
+        let mut parse_pointer = skip_whitespace(text);
+        let (delta, rhs) = RelationalExpression::try_parse(&text[parse_pointer..])?;
+        parse_pointer += delta;
+
+        let lookahead_pointer = parse_pointer + skip_whitespace(&text[parse_pointer..]);
+        let mut lookahead_iter = text[lookahead_pointer..].chars();
+        let operator = (lookahead_iter.next(), lookahead_iter.next());
+
+        let operator = match operator {
+            (Some(operators::EQUAL), _) => operators::EQUAL_STR,
+            (Some(operators::LT), Some(operators::GT)) => operators::NE,
+            (_, _) => return Ok((parse_pointer, Self { rhs, lhs: None })),
+        };
+        parse_pointer = lookahead_pointer + operator.len();
+
+        let (delta, lhs_inner) = EqualityExpression::try_parse(&text[parse_pointer..])?;
+
+        parse_pointer += delta;
+
+        Ok((
+            parse_pointer,
+            Self {
+                rhs,
+                lhs: Some(Lhs {
+                    expr: Box::new(lhs_inner),
+                    operator,
+                }),
+            },
+        ))
+    }
+}
 
 /// relational-expression:
 ///     additive-expression
@@ -50,8 +156,64 @@ struct EqualityExpression {}
 ///     additive-expression > relational-expression
 ///     additive-expression <= relational-expression
 ///     additive-expression >= relational-expression
-#[allow(dead_code)]
-struct RelationalExpression {}
+#[derive(Debug, Serialize, PartialEq)]
+pub(crate) struct RelationalExpression<'a> {
+    rhs: AdditiveExpression<'a>,
+    lhs: Option<Lhs<'a, Box<RelationalExpression<'a>>>>,
+}
+
+impl<'a> RelationalExpression<'a> {
+    #[cfg(test)]
+    pub(crate) fn new(
+        rhs: AdditiveExpression<'a>,
+        lhs: Option<Lhs<'a, Box<RelationalExpression<'a>>>>,
+    ) -> Self {
+        Self { rhs, lhs }
+    }
+}
+
+impl<'a> TryParse<'a, Self> for RelationalExpression<'a> {
+    fn try_parse(text: &'a str) -> ParseResult<Self>
+    where
+        Self: Sized,
+    {
+        let mut parse_pointer = skip_whitespace(text);
+        let (delta, rhs) = AdditiveExpression::try_parse(&text[parse_pointer..])?;
+        parse_pointer += delta;
+
+        let lookahead_pointer = parse_pointer + skip_whitespace(&text[parse_pointer..]);
+        let mut lookahead_iter = text[lookahead_pointer..].chars();
+        let operator = (lookahead_iter.next(), lookahead_iter.next());
+
+        let operator = match operator {
+            (Some(operators::GT), Some(operators::EQUAL)) => operators::GTE,
+            (Some(operators::LT), Some(operators::EQUAL)) => operators::LTE,
+            (Some(operators::GT), _) => operators::GT_STR,
+            (Some(operators::LT), Some(operators::GT)) => {
+                // This is part of an Equality Expression. End
+                return Ok((parse_pointer, Self { rhs, lhs: None }));
+            }
+            (Some(operators::LT), _) => operators::LT_STR,
+            (_, _) => return Ok((parse_pointer, Self { rhs, lhs: None })),
+        };
+        parse_pointer = lookahead_pointer + operator.len();
+
+        let (delta, lhs_inner) = RelationalExpression::try_parse(&text[parse_pointer..])?;
+
+        parse_pointer += delta;
+
+        Ok((
+            parse_pointer,
+            Self {
+                rhs,
+                lhs: Some(Lhs {
+                    expr: Box::new(lhs_inner),
+                    operator,
+                }),
+            },
+        ))
+    }
+}
 
 /// These are the Arithmetic expressions
 ///
@@ -72,7 +234,12 @@ pub(crate) struct AdditiveExpression<'a> {
 
 impl<'a> AdditiveExpression<'a> {
     #[cfg(test)]
-    pub(crate) fn new(rhs: MultiplicativeExpression<'a>, lhs: Option<Lhs<'a, Box<AdditiveExpression<'a>>>>) -> Self { Self { rhs, lhs } }
+    pub(crate) fn new(
+        rhs: MultiplicativeExpression<'a>,
+        lhs: Option<Lhs<'a, Box<AdditiveExpression<'a>>>>,
+    ) -> Self {
+        Self { rhs, lhs }
+    }
 
     pub fn try_parse(text: &'a str) -> ParseResult<Self> {
         let mut parse_pointer = skip_whitespace(text);
@@ -107,7 +274,12 @@ pub(crate) struct MultiplicativeExpression<'a> {
 
 impl<'a> MultiplicativeExpression<'a> {
     #[cfg(test)]
-    pub(crate) fn new(rhs: MetadataExpression<'a>, lhs: Option<Lhs<'a, Box<MultiplicativeExpression<'a>>>>) -> Self { Self { rhs, lhs } }
+    pub(crate) fn new(
+        rhs: MetadataExpression<'a>,
+        lhs: Option<Lhs<'a, Box<MultiplicativeExpression<'a>>>>,
+    ) -> Self {
+        Self { rhs, lhs }
+    }
 
     pub fn try_parse(text: &'a str) -> ParseResult<Self> {
         let mut parse_pointer = skip_whitespace(text);
@@ -157,7 +329,9 @@ pub(crate) struct MetadataExpression<'a> {
 
 impl<'a> MetadataExpression<'a> {
     #[cfg(test)]
-    pub(crate) fn new(rhs: UnaryExpression<'a>, lhs: Option<Lhs<'a, UnaryExpression<'a>>>) -> Self { Self { rhs, lhs } }
+    pub(crate) fn new(rhs: UnaryExpression<'a>, lhs: Option<Lhs<'a, UnaryExpression<'a>>>) -> Self {
+        Self { rhs, lhs }
+    }
 
     pub fn try_parse(text: &'a str) -> ParseResult<Self> {
         let mut parse_pointer = skip_whitespace(text);
@@ -216,7 +390,6 @@ impl<'a> UnaryExpression<'a> {
 }
 
 impl<'a> Unary<'a> {
-
     pub fn try_parse(text: &'a str) -> ParseResult<Self> {
         let mut parse_pointer = skip_whitespace(text);
         let (delta, operator) = match next_char(&text[parse_pointer..]) {
@@ -245,7 +418,13 @@ impl<'a> Unary<'a> {
 
         let (delta, expr) = UnaryExpression::try_parse(&text[parse_pointer..])?;
         parse_pointer += delta;
-        Ok((parse_pointer, Self { operator, expr: Box::new(expr)}))
+        Ok((
+            parse_pointer,
+            Self {
+                operator,
+                expr: Box::new(expr),
+            },
+        ))
     }
 }
 
@@ -259,6 +438,148 @@ mod tests {
     use super::*;
     use rstest::rstest;
 
+    #[rstest]
+    #[case(
+        "1 + 2 > 3 <> false",
+        18,
+        EqualityExpression {
+        rhs: RelationalExpression {
+            rhs: AdditiveExpression {
+            rhs: MultiplicativeExpression {
+                rhs: MetadataExpression {
+                    rhs: UnaryExpression::Type(TypeExpression::Primary(PrimaryExpression::Literal(
+                        Literal::Number(NumberType::Float(1.0)),
+                    ))),
+                    lhs: None,
+                },
+                lhs: None,
+            },
+            lhs: Some(Lhs::new(
+                Box::new(AdditiveExpression {
+                    rhs: MultiplicativeExpression {
+                        rhs: MetadataExpression {
+                            rhs: UnaryExpression::Type(TypeExpression::Primary(PrimaryExpression::Literal(
+                                Literal::Number(NumberType::Float(2.0)),
+                            ))),
+                            lhs: None,
+                        },
+                        lhs: None,
+                    },
+                    lhs: None,
+                }),
+                "+",
+            )),
+        },
+            lhs: Some(Lhs { expr: Box::new(RelationalExpression {
+                rhs: AdditiveExpression {
+                    rhs: MultiplicativeExpression {
+                        rhs: MetadataExpression {
+                            rhs: UnaryExpression::Type(TypeExpression::Primary(PrimaryExpression::Literal(
+                                Literal::Number(NumberType::Float(3.0)),
+                            ))),
+                            lhs: None,
+                        },
+                        lhs: None,
+                    },
+                    lhs: None
+                },
+            lhs: None
+            },),
+                operator: ">",
+            }
+            )},
+            lhs: Some(Lhs { expr: Box::new(
+                EqualityExpression {
+                    rhs: RelationalExpression {
+                        rhs: AdditiveExpression {
+                            rhs: MultiplicativeExpression {
+                                rhs: MetadataExpression {
+                                    rhs: UnaryExpression::Type(TypeExpression::Primary(PrimaryExpression::Literal(
+                                        Literal::Logical(false),
+                                    ))),
+                                    lhs: None,
+                                },
+                                lhs: None,
+                            },
+                            lhs: None
+                        },
+                    lhs: None
+                    },
+                    lhs: None
+                },),
+                operator: "<>",
+            }
+            )},
+    )]
+    fn test_equality_expression(
+        #[case] input: &str,
+        #[case] expected_delta: usize,
+        #[case] expected: EqualityExpression,
+    ) {
+        let (delta, val) = EqualityExpression::try_parse(input).expect("Test Failed");
+        assert_eq!(expected_delta, delta);
+        assert_eq!(expected, val);
+    }
+
+    #[rstest]
+    #[case(
+        "1 + 2 > 3",
+        9,
+        RelationalExpression {
+            rhs: AdditiveExpression {
+            rhs: MultiplicativeExpression {
+                rhs: MetadataExpression {
+                    rhs: UnaryExpression::Type(TypeExpression::Primary(PrimaryExpression::Literal(
+                        Literal::Number(NumberType::Float(1.0)),
+                    ))),
+                    lhs: None,
+                },
+                lhs: None,
+            },
+            lhs: Some(Lhs::new(
+                Box::new(AdditiveExpression {
+                    rhs: MultiplicativeExpression {
+                        rhs: MetadataExpression {
+                            rhs: UnaryExpression::Type(TypeExpression::Primary(PrimaryExpression::Literal(
+                                Literal::Number(NumberType::Float(2.0)),
+                            ))),
+                            lhs: None,
+                        },
+                        lhs: None,
+                    },
+                    lhs: None,
+                }),
+                "+",
+            )),
+        },
+            lhs: Some(Lhs { expr: Box::new(RelationalExpression {
+                rhs: AdditiveExpression {
+                    rhs: MultiplicativeExpression {
+                        rhs: MetadataExpression {
+                            rhs: UnaryExpression::Type(TypeExpression::Primary(PrimaryExpression::Literal(
+                                Literal::Number(NumberType::Float(3.0)),
+                            ))),
+                            lhs: None,
+                        },
+                        lhs: None,
+                    },
+                    lhs: None
+                },
+            lhs: None
+            },),
+                operator: ">",
+            }
+            )}
+    )]
+    fn test_relational_expression(
+        #[case] input: &str,
+        #[case] expected_delta: usize,
+        #[case] expected: RelationalExpression,
+    ) {
+        let (delta, val) = RelationalExpression::try_parse(input).expect("Test Failed");
+        assert_eq!(expected_delta, delta);
+        assert_eq!(expected, val);
+    }
     #[rstest]
     #[case(
         "1 + 2",
@@ -314,9 +635,9 @@ mod tests {
             lhs: Some(Lhs::new(
                 Box::new(MultiplicativeExpression {
                     rhs: MetadataExpression {
-                        rhs: UnaryExpression::Type(TypeExpression::Primary(PrimaryExpression::Literal(
-                            Literal::Number(NumberType::Float(2.0)),
-                        ))),
+                        rhs: UnaryExpression::Type(TypeExpression::Primary(
+                            PrimaryExpression::Literal(Literal::Number(NumberType::Float(2.0))),
+                        )),
                         lhs: None,
                     },
                     lhs: None,

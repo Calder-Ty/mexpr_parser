@@ -94,10 +94,29 @@ pub(crate) enum PrimaryType<'a> {
 }
 
 impl<'a> PrimaryType<'a> {
+    /// For nullable-primitive type
+    /// nullable [opt] primitive type
+    pub(crate) fn try_parse_primitive(text: &'a str) -> ParseResult<Self>{
+        let (delta, val) = PrimaryType::try_parse(text)?;
+        match &val {
+            PrimaryType::Nullable(inner) => {
+                if matches!(inner.as_ref(), Type::PrimaryType(PrimaryType::PrimitiveType(_))) {
+                    Ok((delta, val))
+                } else {
+                    Err(Box::new(ParseError::InvalidInput { pointer: 0, ctx: gen_error_ctx(text, 0, ERR_CONTEXT_SIZE) }))
+                }
+            },
+            PrimaryType::PrimitiveType(_) => { Ok((delta, val)) },
+            _ => Err(Box::new(ParseError::InvalidInput { pointer: 0, ctx: gen_error_ctx(text, 0, ERR_CONTEXT_SIZE) })),
+        }
+    }
+
+}
+impl<'a> PrimaryType<'a> {
     pub fn try_parse(text: &'a str) -> ParseResult<Self> {
         let parse_pointer = skip_whitespace(text);
 
-        if let Ok((i, v)) = Nullable::<Type>::try_parse(&text[parse_pointer..]) {
+        if let Ok((i, v)) = Nullable::try_parse(&text[parse_pointer..]) {
             return Ok((parse_pointer + i, PrimaryType::Nullable(Box::new(v))));
         }
         if let Ok((i, v)) = TableType::try_parse(&text[parse_pointer..]) {
@@ -154,11 +173,12 @@ impl<'a> TryParse<'a, Self> for PrimitiveType<'a> {
 }
 
 #[derive(Debug, Serialize, PartialEq)]
-struct Nullable<T> {
-    _phantom: PhantomData<T>,
+struct Nullable { }
+
+impl Nullable {
 }
 
-impl<'a, T> TryParse<'a, Type<'a>> for Nullable<T> {
+impl<'a>  TryParse<'a, Type<'a>> for Nullable {
 
     fn try_parse(text: &'a str) -> ParseResult<Type<'a>>
         where

@@ -1,7 +1,13 @@
 use serde::Serialize;
 
-use crate::{parser::{expressions::Expression, parse_utils::{ParseResult, skip_whitespace, next_char, self, gen_error_ctx}, operators}, ParseError, ERR_CONTEXT_SIZE};
-
+use crate::{
+    parser::{
+        expressions::Expression,
+        operators,
+        parse_utils::{self, gen_error_ctx, next_char, skip_whitespace, ParseResult},
+    },
+    ParseError, ERR_CONTEXT_SIZE,
+};
 
 #[derive(Debug, Serialize, PartialEq)]
 pub(crate) struct ListExpression<'a> {
@@ -9,7 +15,6 @@ pub(crate) struct ListExpression<'a> {
 }
 
 impl<'a> ListExpression<'a> {
-
     pub fn try_parse(text: &'a str) -> ParseResult<Self> {
         let mut parse_pointer = skip_whitespace(text);
 
@@ -26,11 +31,21 @@ impl<'a> ListExpression<'a> {
             parse_pointer += delta + skip_whitespace(&text[parse_pointer + delta..]);
             elements.push(el);
 
-            if text[parse_pointer..].chars().next().unwrap_or(operators::CLOSE_BRACE) == operators::CLOSE_BRACE {
+            if text[parse_pointer..]
+                .chars()
+                .next()
+                .unwrap_or(operators::CLOSE_BRACE)
+                == operators::CLOSE_BRACE
+            {
                 parse_pointer += 1; // Add to account that we have moved one forward
                 break;
             }
-            if text[parse_pointer..].chars().next().unwrap_or(operators::COMMA) != operators::COMMA {
+            if text[parse_pointer..]
+                .chars()
+                .next()
+                .unwrap_or(operators::COMMA)
+                != operators::COMMA
+            {
                 eprintln!("This Is not a regular Primary Expression, halting!");
                 panic!(
                     "This is unexpected:\n{0}",
@@ -44,7 +59,6 @@ impl<'a> ListExpression<'a> {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use std::assert_eq;
@@ -52,12 +66,12 @@ mod tests {
     use super::*;
     use crate::parser::{
         expressions::{
-            primary_expressions::PrimaryExpression,
-            type_expressions::{
-                TypeExpression, PrimaryType, PrimitiveType
-            }, logical::{
-                AdditiveExpression, MultiplicativeExpression,  MetadataExpression, UnaryExpression
+            logical::{
+                AdditiveExpression, EqualityExpression, MetadataExpression,
+                MultiplicativeExpression, RelationalExpression, UnaryExpression,
             },
+            primary_expressions::PrimaryExpression,
+            type_expressions::{PrimaryType, PrimitiveType, TypeExpression},
         },
         literal::{Literal, NumberType},
     };
@@ -76,7 +90,6 @@ mod tests {
         },
 48)
 ]
-
     #[case(
     r#"{" Not a 235.E10 variable", false, 1234.5, type datetime }"#, 
         ListExpression { elements:
@@ -84,18 +97,24 @@ mod tests {
                 Expression::Primary(PrimaryExpression::Literal(Literal::Text(" Not a 235.E10 variable"))),
                 Expression::Primary(PrimaryExpression::Literal(Literal::Logical(false))),
                 Expression::Primary(PrimaryExpression::Literal(Literal::Number(NumberType::Float(1234.5)))),
-                Expression::Logical(AdditiveExpression::new(
-                    MultiplicativeExpression::new(
-                        MetadataExpression::new(
-                            UnaryExpression::Type(
-                                TypeExpression::PrimaryType(
-                                    PrimaryType::PrimitiveType(
-                                        PrimitiveType::new( "datetime" )
-                                    )
-                                )),
-                        None ),
-                        None ),
-                    None ))
+                Expression::Logical(
+                    EqualityExpression::new(
+                        RelationalExpression::new(
+                            AdditiveExpression::new(
+                                MultiplicativeExpression::new(
+                                    MetadataExpression::new(
+                                        UnaryExpression::Type(
+                                            TypeExpression::PrimaryType(
+                                                PrimaryType::PrimitiveType(
+                                                    PrimitiveType::new( "datetime" )
+                                                )
+                                            )),
+                                    None ),
+                                None ),
+                            None ),
+                        None),
+                    None),
+                )
             ]
         },
 58)

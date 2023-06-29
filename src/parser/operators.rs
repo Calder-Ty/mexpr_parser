@@ -43,6 +43,18 @@ pub const EQUAL: char = '=';
 #[allow(dead_code)]
 pub const EQUAL_STR: &str = "=";
 
+pub const GT: char = '>';
+#[allow(dead_code)]
+pub const GT_STR: &str = ">";
+
+pub const LT: char = '<';
+#[allow(dead_code)]
+pub const LT_STR: &str = "<";
+
 pub const DOUBLE_QUOTE: char = '"';
 #[allow(dead_code)]
 pub const DOUBLE_QUOTE_STR: &str = r#"""#;
+
+pub const LTE: &str = "<=";
+pub const GTE: &str = ">=";
+pub const NE: &str = "<>";
