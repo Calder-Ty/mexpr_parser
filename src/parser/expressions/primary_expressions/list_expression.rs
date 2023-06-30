@@ -67,8 +67,9 @@ mod tests {
     use crate::parser::{
         expressions::{
             logical::{
-                AdditiveExpression, EqualityExpression, MetadataExpression,
-                MultiplicativeExpression, RelationalExpression, UnaryExpression,
+                AdditiveExpression, AsExpression, EqualityExpression, IsExpression, LogicalAnd,
+                LogicalExpression, MetadataExpression, MultiplicativeExpression,
+                RelationalExpression, UnaryExpression,
             },
             primary_expressions::PrimaryExpression,
             type_expressions::{PrimaryType, PrimitiveType, TypeExpression},
@@ -98,6 +99,9 @@ mod tests {
                 Expression::Primary(PrimaryExpression::Literal(Literal::Logical(false))),
                 Expression::Primary(PrimaryExpression::Literal(Literal::Number(NumberType::Float(1234.5)))),
                 Expression::Logical(
+                    LogicalExpression::And(
+                    LogicalAnd::new(
+                    IsExpression::AsExpression( AsExpression::Equality(
                     EqualityExpression::new(
                         RelationalExpression::new(
                             AdditiveExpression::new(
@@ -115,6 +119,8 @@ mod tests {
                         None),
                     None),
                 )
+        ), None
+                    )))
             ]
         },
 58)

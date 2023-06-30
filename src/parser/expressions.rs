@@ -5,7 +5,7 @@ mod primary_expressions;
 mod record;
 mod type_expressions;
 
-use self::{each::EachExpression, logical::EqualityExpression};
+use self::{each::EachExpression, logical::{EqualityExpression, LogicalExpression}};
 
 use super::{
     core::TryParse,
@@ -21,7 +21,7 @@ use serde::Serialize;
 pub(crate) enum Expression<'a> {
     Let(LetExpression<'a>),
     Primary(PrimaryExpression<'a>),
-    Logical(EqualityExpression<'a>),
+    Logical(LogicalExpression<'a>),
     Each(Box<EachExpression<'a>>),
 }
 
@@ -36,7 +36,7 @@ impl<'a> Expression<'a> {
         if let Ok((i, val)) = EachExpression::try_parse(text) {
             return Ok((i, Expression::Each(Box::new(val))));
         }
-        if let Ok((i, val)) = EqualityExpression::try_parse(text) {
+        if let Ok((i, val)) = LogicalExpression::try_parse(text) {
             return Ok((i, Expression::Logical(val)));
         }
         Err(Box::new(ParseError::InvalidInput {
@@ -64,7 +64,7 @@ impl<'a> Expression<'a> {
                 return Ok((i, Expression::Each(Box::new(val))));
             }
         }
-        if let Ok((i, val)) = EqualityExpression::try_parse(text) {
+        if let Ok((i, val)) = LogicalExpression::try_parse(text) {
             if lookahead_func(&text[i..]) {
                 return Ok((i, Expression::Logical(val)));
             }

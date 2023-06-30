@@ -79,7 +79,7 @@ impl<'a> PrimaryExpression<'a> {
         if let Ok((i, val)) = Identifier::try_parse(text) {
             return Ok((i, PrimaryExpression::Identifier(val)));
         }
-        if let Ok((i, val)) = ParenthesizedExpression::<PrimaryExpression>::try_parse(text) {
+        if let Ok((i, val)) = ParenthesizedExpression::try_parse(text) {
             return Ok((i, PrimaryExpression::ParenthesizedExpression(Box::new(val))));
         }
         Err(ParseError::InvalidInput {

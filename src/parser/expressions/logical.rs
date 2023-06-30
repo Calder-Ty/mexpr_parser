@@ -20,24 +20,174 @@ use super::type_expressions::{PrimaryType, TypeExpression};
 /// logical-and-expression:
 ///       is-expression
 ///       logical-and-expression and is-expression
-#[allow(dead_code)]
-struct LogicalExpression {}
+#[derive(Debug, Serialize, PartialEq)]
+pub(crate) enum LogicalExpression<'a> {
+    Or(LogicalOr<'a>),
+    And(LogicalAnd<'a>),
+}
+
+impl<'a> TryParse<'a, Self> for LogicalExpression<'a> {
+    fn try_parse(text: &'a str) -> ParseResult<Self>
+    where
+        Self: Sized,
+    {
+        if let Ok((delta, i)) = LogicalAnd::try_parse(text) {
+            return Ok((delta, LogicalExpression::And(i)));
+        };
+        if let Ok((delta, i)) = LogicalOr::try_parse(text) {
+            return Ok((delta, LogicalExpression::Or(i)));
+        };
+        Err(Box::new(ParseError::InvalidInput {
+            pointer: 0,
+            ctx: gen_error_ctx(text, 0, ERR_CONTEXT_SIZE),
+        }))
+    }
+}
+
+
+#[derive(Debug, Serialize, PartialEq)]
+pub(crate) struct LogicalOr<'a> {
+    rhs: LogicalAnd<'a>,
+    lhs: Option<Box<LogicalOr<'a>>>,
+}
+
+impl<'a> TryParse<'a, Self> for LogicalOr<'a> {
+
+    fn try_parse(text: &'a str) -> ParseResult<Self>
+    where
+        Self: Sized,
+    {
+        let mut parse_pointer = skip_whitespace(text);
+
+        let (delta, rhs) = LogicalAnd::try_parse(&text[parse_pointer..])?;
+
+        parse_pointer += delta;
+
+        let lookahead_pointer = parse_pointer + skip_whitespace(&text[parse_pointer..]);
+        if !(text[lookahead_pointer..].starts_with(keywords::OR)
+            && followed_by_whitespace(&text[lookahead_pointer..], keywords::OR.len()))
+        {
+            return Ok((parse_pointer, Self { rhs, lhs:None }));
+        };
+
+        parse_pointer = lookahead_pointer + keywords::OR.len();
+
+        let (delta, lhs) = LogicalOr::try_parse(&text[parse_pointer..])?;
+        parse_pointer += delta;
+
+        return Ok((parse_pointer, Self { rhs, lhs: Some(Box::new(lhs)) }));
+    }
+}
+
+
+
+#[derive(Debug, Serialize, PartialEq)]
+pub(crate) struct LogicalAnd<'a> {
+    rhs: IsExpression<'a>,
+    lhs: Option<Box<LogicalAnd<'a>>>,
+}
+
+impl<'a> LogicalAnd<'a> {
+    #[cfg(test)]
+    pub(crate) fn new(rhs: IsExpression<'a>, lhs: Option<Box<LogicalAnd<'a>>>) -> Self { Self { rhs, lhs } }
+}
+
+impl<'a> TryParse<'a, Self> for LogicalAnd<'a> {
+    fn try_parse(text: &'a str) -> ParseResult<Self>
+    where
+        Self: Sized,
+    {
+        let mut parse_pointer = skip_whitespace(text);
+
+        let (delta, rhs) = IsExpression::try_parse(&text[parse_pointer..])?;
+
+        parse_pointer += delta;
+
+        let lookahead_pointer = parse_pointer + skip_whitespace(&text[parse_pointer..]);
+        if !(text[lookahead_pointer..].starts_with(keywords::AND)
+            && followed_by_whitespace(&text[lookahead_pointer..], keywords::AND.len()))
+        {
+            return Ok((parse_pointer, Self { rhs, lhs:None }));
+        };
+
+        parse_pointer = lookahead_pointer + keywords::AND.len();
+
+        let (delta, lhs) = LogicalAnd::try_parse(&text[parse_pointer..])?;
+        parse_pointer += delta;
+
+        return Ok((parse_pointer, Self { rhs, lhs: Some(Box::new(lhs)) }));
+    }
+}
 
 /// is-expression:
 ///   as-expression
 ///   is-expression is nullable-primitive-type
 /// nullable-primitive-type:
 ///   nullable[opt] primitive-type
-#[allow(dead_code)]
-struct IsExpression {}
+#[derive(Debug, Serialize, PartialEq)]
+pub(crate) enum IsExpression<'a> {
+    AsExpression(AsExpression<'a>),
+    WithNullable(Box<IsExpressionWithNullable<'a>>),
+}
 
+impl<'a> TryParse<'a, Self> for IsExpression<'a> {
+    fn try_parse(text: &'a str) -> ParseResult<Self>
+    where
+        Self: Sized,
+    {
+        if let Ok((delta, i)) = AsExpression::try_parse(text) {
+            return Ok((delta, IsExpression::AsExpression(i)));
+        };
+        if let Ok((delta, i)) = IsExpressionWithNullable::try_parse(text) {
+            return Ok((delta, IsExpression::WithNullable(Box::new(i))));
+        };
+        Err(Box::new(ParseError::InvalidInput {
+            pointer: 0,
+            ctx: gen_error_ctx(text, 0, ERR_CONTEXT_SIZE),
+        }))
+    }
+}
+
+#[derive(Debug, Serialize, PartialEq)]
+pub(crate) struct IsExpressionWithNullable<'a> {
+    expr: AsExpression<'a>,
+    nullable: PrimaryType<'a>,
+}
+
+impl<'a> TryParse<'a, Self> for IsExpressionWithNullable<'a> {
+    fn try_parse(text: &'a str) -> ParseResult<Self>
+    where
+        Self: Sized,
+    {
+        let mut parse_pointer = skip_whitespace(text);
+
+        let (delta, expr) = AsExpression::try_parse(&text[parse_pointer..])?;
+
+        parse_pointer += delta;
+        parse_pointer += skip_whitespace(&text[parse_pointer..]);
+
+        if !(text[parse_pointer..].starts_with(keywords::IS)
+            && followed_by_whitespace(&text[parse_pointer..], keywords::IS.len()))
+        {
+            return Err(Box::new(ParseError::InvalidInput {
+                pointer: parse_pointer,
+                ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
+            }));
+        };
+
+        let (delta, nullable) = PrimaryType::try_parse_primitive(&text[parse_pointer..])?;
+        parse_pointer += delta;
+
+        Ok((parse_pointer, Self { expr, nullable }))
+    }
+}
 /// as-expression:
 ///   equality-expression
 ///   as-expression as nullable-primitive-type
 #[derive(Debug, Serialize, PartialEq)]
-enum AsExpression<'a> {
+pub(crate) enum AsExpression<'a> {
     Equality(EqualityExpression<'a>),
-    WithNullable(Box<AsExressionWithNullablePrimitive<'a>>),
+    WithNullable(Box<AsExressionWithNullable<'a>>),
 }
 
 impl<'a> TryParse<'a, Self> for AsExpression<'a> {
@@ -48,7 +198,7 @@ impl<'a> TryParse<'a, Self> for AsExpression<'a> {
         if let Ok((delta, i)) = EqualityExpression::try_parse(text) {
             return Ok((delta, AsExpression::Equality(i)));
         };
-        if let Ok((delta, i)) = AsExressionWithNullablePrimitive::try_parse(text) {
+        if let Ok((delta, i)) = AsExressionWithNullable::try_parse(text) {
             return Ok((delta, AsExpression::WithNullable(Box::new(i))));
         };
         Err(Box::new(ParseError::InvalidInput {
@@ -58,20 +208,24 @@ impl<'a> TryParse<'a, Self> for AsExpression<'a> {
     }
 }
 
+
+/// The spec indicates that you could have lots of chained as type as type as type.
+/// But that seems really bad, and is recursive causing overflows. I'm going to 
+/// disallow it for now.
 #[derive(Debug, Serialize, PartialEq)]
-struct AsExressionWithNullablePrimitive<'a> {
-    expr: AsExpression<'a>,
+pub(crate) struct AsExressionWithNullable<'a> {
+    expr: EqualityExpression<'a>,
     nullable: PrimaryType<'a>,
 }
 
-impl<'a> TryParse<'a, Self> for AsExressionWithNullablePrimitive<'a> {
+impl<'a> TryParse<'a, Self> for AsExressionWithNullable<'a> {
     fn try_parse(text: &'a str) -> ParseResult<Self>
     where
         Self: Sized,
     {
         let mut parse_pointer = skip_whitespace(text);
 
-        let (delta, expr) = AsExpression::try_parse(&text[parse_pointer..])?;
+        let (delta, expr) = EqualityExpression::try_parse(&text[parse_pointer..])?;
 
         parse_pointer += delta;
         parse_pointer += skip_whitespace(&text[parse_pointer..]);
@@ -84,7 +238,6 @@ impl<'a> TryParse<'a, Self> for AsExressionWithNullablePrimitive<'a> {
                 ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
             }));
         };
-
 
         let (delta, nullable) = PrimaryType::try_parse_primitive(&text[parse_pointer..])?;
         parse_pointer += delta;

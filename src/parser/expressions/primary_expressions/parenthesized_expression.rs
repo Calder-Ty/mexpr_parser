@@ -10,11 +10,9 @@ use crate::{
     ParseError, ERR_CONTEXT_SIZE,
 };
 
-pub(super) struct ParenthesizedExpression<'a, T: 'a> {
-    _phantom: PhantomData<&'a T>,
-}
+pub(super) struct ParenthesizedExpression { }
 
-impl<'a, T> TryParse<'a, Expression<'a>> for ParenthesizedExpression<'a, T> {
+impl<'a> TryParse<'a, Expression<'a>> for ParenthesizedExpression {
     fn try_parse(text: &'a str) -> ParseResult<Expression<'_>>
     where
         Self: Sized,
@@ -60,7 +58,7 @@ mod tests {
         #[case] exp_delta: usize,
         #[case] expected: Expression,
     ) {
-        let (delta, actual) = ParenthesizedExpression::<PrimaryExpression>::try_parse(input_text)
+        let (delta, actual) = ParenthesizedExpression::try_parse(input_text)
             .expect("Unable to parse input");
 
         assert_eq!(exp_delta, delta);
