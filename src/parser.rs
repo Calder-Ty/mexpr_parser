@@ -25,6 +25,8 @@ pub fn try_parse(text: &str) -> ParseResult<Vec<LetExpression<'_>>> {
 
 pub(crate) mod parse_utils {
     use thiserror::Error;
+
+    use super::identifier::is_identifier_part;
     pub type ParseResult<T> = Result<(usize, T), Box<ParseError>>;
 
     #[derive(Debug, Error)]
@@ -61,6 +63,13 @@ pub(crate) mod parse_utils {
         let next = text.chars().nth(len).unwrap_or('_');
         // Valid Separator
         next.is_whitespace() || next == ','
+    }
+
+    #[inline]
+    pub fn end_of_identifier(text: &str, len: usize) -> bool {
+        let next = text.chars().nth(len).unwrap_or('_');
+        // Valid Separator
+        !is_identifier_part(&next)
     }
 
     #[inline]

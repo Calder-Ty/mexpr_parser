@@ -10,7 +10,7 @@ use super::{
 };
 
 #[inline]
-fn is_identifier_part(c: &char) -> bool {
+pub(crate) fn is_identifier_part(c: &char) -> bool {
     is_letter_character(c)
         || c.is_number_decimal_digit()     // Nd
         || c.is_punctuation_connector()    // Pc

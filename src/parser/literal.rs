@@ -2,7 +2,7 @@ use crate::ERR_CONTEXT_SIZE;
 
 use super::{
     keywords, operators,
-    parse_utils::{self, followed_by_valid_seperator, ParseError, ParseResult},
+    parse_utils::{self, followed_by_valid_seperator, ParseError, ParseResult, end_of_identifier},
 };
 use serde::Serialize;
 
@@ -147,7 +147,7 @@ impl<'a> Literal<'a> {
                 }))
             }
         } else if text[parse_pointer..].starts_with(keywords::NULL)
-            && followed_by_valid_seperator(&text[parse_pointer..], keywords::NULL.len())
+            && end_of_identifier(&text[parse_pointer..], keywords::NULL.len())
         {
             Ok((parse_pointer + keywords::NULL.len(), Literal::Null))
         } else {
