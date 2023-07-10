@@ -68,7 +68,7 @@ mod tests {
         expressions::{
             logical::{
                 AdditiveExpression, AsExpression, EqualityExpression, IsExpression, LogicalAnd,
-                LogicalExpression, MetadataExpression, MultiplicativeExpression,
+                LogicalExpression, LogicalOr, MetadataExpression, MultiplicativeExpression,
                 RelationalExpression, UnaryExpression,
             },
             primary_expressions::PrimaryExpression,
@@ -99,7 +99,8 @@ mod tests {
                 Expression::Primary(PrimaryExpression::Literal(Literal::Logical(false))),
                 Expression::Primary(PrimaryExpression::Literal(Literal::Number(NumberType::Float(1234.5)))),
                 Expression::Logical(
-                    LogicalExpression::And(
+                    LogicalExpression::Or(
+                    LogicalOr::new(
                     LogicalAnd::new(
                     IsExpression::AsExpression( AsExpression::Equality(
                     EqualityExpression::new(
@@ -120,7 +121,7 @@ mod tests {
                     None),
                 )
         ), None
-                    )))
+                            ), None)))
             ]
         },
 58)

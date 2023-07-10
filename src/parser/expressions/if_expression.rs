@@ -88,7 +88,7 @@ mod test {
             logical::{
                 AdditiveExpression, AsExpression, EqualityExpression, IsExpression, Lhs,
                 LogicalAnd, LogicalExpression, MetadataExpression, MultiplicativeExpression,
-                RelationalExpression, UnaryExpression,
+                RelationalExpression, UnaryExpression, LogicalOr,
             },
             primary_expressions::{FieldAccess, PrimaryExpression},
             type_expressions::TypeExpression,
@@ -106,7 +106,7 @@ mod test {
         let input = r#"if [days_from_go_live] = null then "Empty" else null),"#;
         let expected_delta = 52;
         let expected = IfExpression {
-            condition: Expression::Logical(LogicalExpression::And(LogicalAnd::new(
+            condition: Expression::Logical(LogicalExpression::Or(LogicalOr::new(LogicalAnd::new(
                 IsExpression::AsExpression(AsExpression::Equality(EqualityExpression::new(
                     RelationalExpression::new(
                         AdditiveExpression::new(
@@ -151,7 +151,8 @@ mod test {
                     )),
                 ))),
                 None,
-            ))),
+            ), None)),),
+
             if_true: Expression::Primary(PrimaryExpression::Literal(Literal::Text("Empty"))),
             if_false: Expression::Primary(PrimaryExpression::Literal(
                 crate::parser::literal::Literal::Null,

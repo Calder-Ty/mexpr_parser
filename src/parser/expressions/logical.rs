@@ -31,11 +31,11 @@ impl<'a> TryParse<'a, Self> for LogicalExpression<'a> {
     where
         Self: Sized,
     {
-        if let Ok((delta, i)) = LogicalAnd::try_parse(text) {
-            return Ok((delta, LogicalExpression::And(i)));
-        };
         if let Ok((delta, i)) = LogicalOr::try_parse(text) {
             return Ok((delta, LogicalExpression::Or(i)));
+        };
+        if let Ok((delta, i)) = LogicalAnd::try_parse(text) {
+            return Ok((delta, LogicalExpression::And(i)));
         };
         Err(Box::new(ParseError::InvalidInput {
             pointer: 0,
@@ -49,6 +49,11 @@ impl<'a> TryParse<'a, Self> for LogicalExpression<'a> {
 pub(crate) struct LogicalOr<'a> {
     rhs: LogicalAnd<'a>,
     lhs: Option<Box<LogicalOr<'a>>>,
+}
+
+impl<'a> LogicalOr<'a> {
+    #[cfg(test)]
+    pub(crate) fn new(rhs: LogicalAnd<'a>, lhs: Option<Box<LogicalOr<'a>>>) -> Self { Self { rhs, lhs } }
 }
 
 impl<'a> TryParse<'a, Self> for LogicalOr<'a> {
