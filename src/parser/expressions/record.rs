@@ -64,7 +64,7 @@ impl<'a> Record<'a> {
             parse_pointer += delta;
             parse_pointer += skip_whitespace(&text[parse_pointer..]);
 
-            if text[parse_pointer..].chars().next().unwrap_or(' ') != '=' {
+            if next_char(&text[parse_pointer..]).unwrap_or(' ') != operators::EQUAL {
                 // The next character must be a '='.
                 return Err(Box::new(ParseError::InvalidInput {
                     pointer: parse_pointer,
