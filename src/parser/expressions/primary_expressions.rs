@@ -58,14 +58,14 @@ pub(crate) enum PrimaryExpression<'a> {
 impl<'a> PrimaryExpression<'a> {
     // parses the stuff and returns an instance of itself
     pub fn try_parse(text: &'a str) -> Result<(usize, Self), ParseError> {
+        if let Ok((i, val)) = Literal::try_parse(text) {
+            return Ok((i, PrimaryExpression::Literal(val)));
+        }
         if let Ok((i, val)) = ItemAccess::try_parse(text) {
             return Ok((i, PrimaryExpression::ItemAccess(Box::new(val))));
         }
         if let Ok((i, val)) = FieldAccess::try_parse(text) {
             return Ok((i, PrimaryExpression::FieldAccess(Box::new(val))));
-        }
-        if let Ok((i, val)) = Literal::try_parse(text) {
-            return Ok((i, PrimaryExpression::Literal(val)));
         }
         if let Ok((i, val)) = Record::try_parse(text) {
             return Ok((i, PrimaryExpression::Record(val)));
