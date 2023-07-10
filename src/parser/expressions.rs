@@ -4,8 +4,9 @@ mod logical;
 mod primary_expressions;
 mod record;
 mod type_expressions;
+mod if_expression;
 
-use self::{each::EachExpression, logical::{EqualityExpression, LogicalExpression}};
+use self::{each::EachExpression, logical::{EqualityExpression, LogicalExpression}, if_expression::IfExpression};
 
 use super::{
     core::TryParse,
@@ -23,6 +24,7 @@ pub(crate) enum Expression<'a> {
     Primary(PrimaryExpression<'a>),
     Logical(LogicalExpression<'a>),
     Each(Box<EachExpression<'a>>),
+    If(Box<IfExpression<'a>>),
 }
 
 impl<'a> Expression<'a> {
@@ -38,6 +40,9 @@ impl<'a> Expression<'a> {
         }
         if let Ok((i, val)) = LogicalExpression::try_parse(text) {
             return Ok((i, Expression::Logical(val)));
+        }
+        if let Ok((i, val)) = IfExpression::try_parse(text) {
+            return Ok((i, Expression::If(Box::new(val))));
         }
         Err(Box::new(ParseError::InvalidInput {
             pointer: 0,
@@ -67,6 +72,11 @@ impl<'a> Expression<'a> {
         if let Ok((i, val)) = LogicalExpression::try_parse(text) {
             if lookahead_func(&text[i..]) {
                 return Ok((i, Expression::Logical(val)));
+            }
+        }
+        if let Ok((i, val)) = IfExpression::try_parse(text) {
+            if lookahead_func(&text[i..]) {
+                return Ok((i, Expression::If(Box::new(val))));
             }
         }
         Err(Box::new(ParseError::InvalidInput {
