@@ -3,7 +3,7 @@ use serde::Serialize;
 use crate::{parser::{
     core::TryParse,
     keywords,
-    parse_utils::{followed_by_whitespace, gen_error_ctx, skip_whitespace}, operators,
+    parse_utils::{followed_by_whitespace, gen_error_ctx, skip_whitespace_and_comments}, operators,
 }, ERR_CONTEXT_SIZE};
 
 use super::Expression;
@@ -43,7 +43,7 @@ impl<'a> TryParse<'a, Self> for EachExpression<'a> {
     where
         Self: Sized,
     {
-        let mut parse_pointer = skip_whitespace(text);
+        let mut parse_pointer = skip_whitespace_and_comments(text);
 
         if !(text[parse_pointer..].starts_with(keywords::EACH)
             && followed_by_whitespace(&text[parse_pointer..], keywords::EACH.len()))
@@ -65,7 +65,7 @@ impl<'a> TryParse<'a, Self> for EachExpression<'a> {
 }
 
 fn each_lookahead(text:&str) -> bool {
-    let lookahead_pointer = skip_whitespace(text);
+    let lookahead_pointer = skip_whitespace_and_comments(text);
     for cont in EXPR_CONTINUATORS {
         if text[lookahead_pointer..].starts_with(cont) {
             return false

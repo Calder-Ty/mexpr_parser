@@ -4,7 +4,7 @@ use crate::{
     parser::{
         expressions::Expression,
         operators,
-        parse_utils::{self, gen_error_ctx, next_char, skip_whitespace, ParseResult},
+        parse_utils::{self, gen_error_ctx, next_char, skip_whitespace_and_comments, ParseResult}, core::TryParse,
     },
     ParseError, ERR_CONTEXT_SIZE,
 };
@@ -16,7 +16,7 @@ pub(crate) struct ListExpression<'a> {
 
 impl<'a> ListExpression<'a> {
     pub fn try_parse(text: &'a str) -> ParseResult<Self> {
-        let mut parse_pointer = skip_whitespace(text);
+        let mut parse_pointer = skip_whitespace_and_comments(text);
 
         if next_char(&text[parse_pointer..]).unwrap_or(' ') != operators::OPEN_BRACE {
             return Err(Box::new(ParseError::InvalidInput {
@@ -28,8 +28,15 @@ impl<'a> ListExpression<'a> {
         let mut elements = vec![];
         loop {
             let (delta, el) = Expression::try_parse(&text[parse_pointer..])?;
-            parse_pointer += delta + skip_whitespace(&text[parse_pointer + delta..]);
             elements.push(el);
+            parse_pointer += delta + skip_whitespace_and_comments(&text[parse_pointer + delta..]);
+
+            if text[parse_pointer..].starts_with(operators::RANGE) {
+                parse_pointer += operators::RANGE.len();
+                let (delta, el) = Expression::try_parse(&text[parse_pointer..])?;
+                elements.push(el);
+                parse_pointer += delta + skip_whitespace_and_comments(&text[parse_pointer + delta..]);
+            }
 
             if text[parse_pointer..]
                 .chars()
@@ -58,6 +65,7 @@ impl<'a> ListExpression<'a> {
         Ok((parse_pointer, Self { elements }))
     }
 }
+
 
 #[cfg(test)]
 mod tests {

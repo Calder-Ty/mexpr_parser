@@ -5,7 +5,7 @@ use crate::{
         core::TryParse,
         expressions::Expression,
         operators,
-        parse_utils::{gen_error_ctx, next_char, skip_whitespace, ParseResult},
+        parse_utils::{gen_error_ctx, next_char, skip_whitespace_and_comments, ParseResult},
     },
     ParseError, ERR_CONTEXT_SIZE,
 };
@@ -30,7 +30,7 @@ impl<'a> TryParse<'a, Self> for ItemAccess<'a> {
     where
         Self: Sized,
     {
-        let mut parse_pointer = skip_whitespace(text);
+        let mut parse_pointer = skip_whitespace_and_comments(text);
 
         // For Item Access to be valid, There _has_ to be an '{' somewhere near.
         // To ensure that we are not in a situation where we recurse forever
@@ -51,7 +51,7 @@ impl<'a> TryParse<'a, Self> for ItemAccess<'a> {
             .count();
         let (delta, expr) = PrimaryExpression::try_parse(&text[parse_pointer..primary_end])?;
         parse_pointer += delta;
-        parse_pointer += skip_whitespace(&text[parse_pointer..]);
+        parse_pointer += skip_whitespace_and_comments(&text[parse_pointer..]);
 
         if next_char(&text[parse_pointer..]).unwrap_or(' ') != operators::OPEN_BRACE {
             return Err(Box::new(ParseError::InvalidInput {
@@ -63,7 +63,7 @@ impl<'a> TryParse<'a, Self> for ItemAccess<'a> {
                             //
         let (delta, selector) = Expression::try_parse(&text[parse_pointer..])?;
         parse_pointer += delta;
-        let lookahead_pointer = skip_whitespace(&text[parse_pointer..]);
+        let lookahead_pointer = skip_whitespace_and_comments(&text[parse_pointer..]);
 
         if next_char(&text[parse_pointer + lookahead_pointer..]).unwrap_or(' ')
             != operators::CLOSE_BRACE

@@ -13,7 +13,7 @@ use crate::{
     parser::{
         core::TryParse,
         keywords,
-        parse_utils::{followed_by_valid_seperator, gen_error_ctx, skip_whitespace},
+        parse_utils::{followed_by_valid_seperator, gen_error_ctx, skip_whitespace_and_comments},
     },
     ERR_CONTEXT_SIZE,
 };
@@ -32,7 +32,7 @@ impl<'a> TryParse<'a, Self> for IfExpression<'a> {
     where
         Self: Sized,
     {
-        let mut parse_pointer = skip_whitespace(text);
+        let mut parse_pointer = skip_whitespace_and_comments(text);
         if !text[parse_pointer..].starts_with(keywords::IF) {
             return Err(Box::new(crate::ParseError::InvalidInput {
                 pointer: parse_pointer,
@@ -44,14 +44,14 @@ impl<'a> TryParse<'a, Self> for IfExpression<'a> {
             Expression::try_parse_with_lookahead(&text[parse_pointer..], then_lookahead)?;
 
         parse_pointer += delta;
-        parse_pointer += skip_whitespace(&text[parse_pointer..]);
+        parse_pointer += skip_whitespace_and_comments(&text[parse_pointer..]);
         parse_pointer += keywords::THEN.len();
 
         let (delta, if_true) =
             Expression::try_parse_with_lookahead(&text[parse_pointer..], else_lookahead)?;
 
         parse_pointer += delta;
-        parse_pointer += skip_whitespace(&text[parse_pointer..]);
+        parse_pointer += skip_whitespace_and_comments(&text[parse_pointer..]);
         parse_pointer += keywords::ELSE.len();
 
         let (delta, if_false) = Expression::try_parse(&text[parse_pointer..])?;
@@ -70,13 +70,13 @@ impl<'a> TryParse<'a, Self> for IfExpression<'a> {
 }
 
 fn then_lookahead(text: &str) -> bool {
-    let lookahead_pointer = skip_whitespace(text);
+    let lookahead_pointer = skip_whitespace_and_comments(text);
     text[lookahead_pointer..].starts_with(keywords::THEN)
         && followed_by_valid_seperator(&text[lookahead_pointer..], keywords::THEN.len())
 }
 
 fn else_lookahead(text: &str) -> bool {
-    let lookahead_pointer = skip_whitespace(text);
+    let lookahead_pointer = skip_whitespace_and_comments(text);
     text[lookahead_pointer..].starts_with(keywords::ELSE)
         && followed_by_valid_seperator(&text[lookahead_pointer..], keywords::ELSE.len())
 }

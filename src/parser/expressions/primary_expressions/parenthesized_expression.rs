@@ -5,7 +5,7 @@ use crate::{
         core::TryParse,
         expressions::Expression,
         operators,
-        parse_utils::{gen_error_ctx, next_char, skip_whitespace, ParseResult},
+        parse_utils::{gen_error_ctx, next_char, skip_whitespace_and_comments, ParseResult},
     },
     ParseError, ERR_CONTEXT_SIZE,
 };
@@ -17,7 +17,7 @@ impl<'a> TryParse<'a, Expression<'a>> for ParenthesizedExpression {
     where
         Self: Sized,
     {
-        let mut parse_pointer = skip_whitespace(text);
+        let mut parse_pointer = skip_whitespace_and_comments(text);
         if next_char(&text[parse_pointer..]).unwrap_or('_') != operators::OPEN_PAREN {
             return Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
@@ -35,7 +35,7 @@ impl<'a> TryParse<'a, Expression<'a>> for ParenthesizedExpression {
 }
 
 fn parenthesized_lookahead(text: &str) -> bool {
-    let lookahead_pointer = skip_whitespace(text);
+    let lookahead_pointer = skip_whitespace_and_comments(text);
     next_char(&text[lookahead_pointer..]).unwrap_or(' ') == operators::CLOSE_PAREN
 }
 

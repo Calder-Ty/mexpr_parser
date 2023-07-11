@@ -6,13 +6,13 @@ mod record;
 mod type_expressions;
 mod if_expression;
 
-use self::{each::EachExpression, logical::{EqualityExpression, LogicalExpression}, if_expression::IfExpression};
+use self::{each::EachExpression, logical::{EqualityExpression, LogicalExpression}, if_expression::IfExpression, function::FunctionExpression};
 
 use super::{
     core::TryParse,
     identifier::Identifier,
     keywords, operators,
-    parse_utils::{self, gen_error_ctx, skip_whitespace, ParseResult},
+    parse_utils::{self, gen_error_ctx, skip_whitespace_and_comments, ParseResult},
 };
 use crate::{ParseError, ERR_CONTEXT_SIZE};
 use primary_expressions::PrimaryExpression;
@@ -25,6 +25,7 @@ pub(crate) enum Expression<'a> {
     Logical(LogicalExpression<'a>),
     Each(Box<EachExpression<'a>>),
     If(Box<IfExpression<'a>>),
+    Function(Box<FunctionExpression<'a>>),
 }
 
 impl<'a> Expression<'a> {
@@ -37,6 +38,9 @@ impl<'a> Expression<'a> {
         }
         if let Ok((i, val)) = EachExpression::try_parse(text) {
             return Ok((i, Expression::Each(Box::new(val))));
+        }
+        if let Ok((i, val)) = FunctionExpression::try_parse(text) {
+            return Ok((i, Expression::Function(Box::new(val))));
         }
         if let Ok((i, val)) = LogicalExpression::try_parse(text) {
             return Ok((i, Expression::Logical(val)));
@@ -67,6 +71,11 @@ impl<'a> Expression<'a> {
         if let Ok((i, val)) = EachExpression::try_parse(text) {
             if lookahead_func(&text[i..]) {
                 return Ok((i, Expression::Each(Box::new(val))));
+            }
+        }
+        if let Ok((i, val)) = FunctionExpression::try_parse(text) {
+            if lookahead_func(&text[i..]) {
+                return Ok((i, Expression::Function(Box::new(val))));
             }
         }
         if let Ok((i, val)) = LogicalExpression::try_parse(text) {
@@ -102,7 +111,7 @@ pub struct LetExpression<'a> {
 
 impl<'a> LetExpression<'a> {
     pub fn try_parse(text: &'a str) -> parse_utils::ParseResult<Self> {
-        let mut parse_pointer = skip_whitespace(text);
+        let mut parse_pointer = skip_whitespace_and_comments(text);
         let let_sep = &text[parse_pointer..]
             .chars()
             .nth(keywords::LET.len())
@@ -121,7 +130,7 @@ impl<'a> LetExpression<'a> {
             let (delta, assignment) = VariableAssignment::try_parse(&text[parse_pointer..])?;
             variable_list.push(assignment);
             parse_pointer += delta;
-            parse_pointer += skip_whitespace(&text[parse_pointer..]);
+            parse_pointer += skip_whitespace_and_comments(&text[parse_pointer..]);
             if text[parse_pointer..].chars().next().unwrap_or(' ') != ',' {
                 break;
             }
@@ -129,7 +138,7 @@ impl<'a> LetExpression<'a> {
         }
 
         // Now for the In part
-        parse_pointer += skip_whitespace(&text[parse_pointer..]);
+        parse_pointer += skip_whitespace_and_comments(&text[parse_pointer..]);
 
         let in_sep = &text[parse_pointer..]
             .chars()
@@ -158,7 +167,7 @@ struct VariableAssignment<'a> {
 
 impl<'a> VariableAssignment<'a> {
     fn try_parse(text: &'a str) -> parse_utils::ParseResult<Self> {
-        let mut parse_pointer = skip_whitespace(text);
+        let mut parse_pointer = skip_whitespace_and_comments(text);
         let (delta, name) = Identifier::try_parse(&text[parse_pointer..])?;
         parse_pointer += delta;
         // Skip let part of the statement
@@ -181,7 +190,7 @@ impl<'a> VariableAssignment<'a> {
 
 /// Makes sure that the value given back is a FULL assignment value
 fn var_assignment_lookahead(text: &str) -> bool {
-    let lookahead_pointer = skip_whitespace(text);
+    let lookahead_pointer = skip_whitespace_and_comments(text);
 
     text[lookahead_pointer..].starts_with(operators::COMMA_STR)
         || text[lookahead_pointer..].starts_with(keywords::IN)

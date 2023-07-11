@@ -9,7 +9,7 @@ use crate::{
         operators,
         parse_utils::{
             followed_by_whitespace, gen_error_ctx, next_char,
-            skip_whitespace, ParseResult,
+            skip_whitespace_and_comments, ParseResult,
         }, keywords,
     },
     ParseError, ERR_CONTEXT_SIZE,
@@ -54,7 +54,7 @@ impl<'a> TryParse<'a, Self> for TypeExpression<'a> {
     where
         Self: Sized,
     {
-        let mut parse_pointer = skip_whitespace(text);
+        let mut parse_pointer = skip_whitespace_and_comments(text);
 
         if text[parse_pointer..].starts_with(keywords::TYPE)
             && followed_by_whitespace(&text[parse_pointer..], keywords::TYPE.len())
@@ -114,7 +114,7 @@ impl<'a> PrimaryType<'a> {
 }
 impl<'a> PrimaryType<'a> {
     pub fn try_parse(text: &'a str) -> ParseResult<Self> {
-        let parse_pointer = skip_whitespace(text);
+        let parse_pointer = skip_whitespace_and_comments(text);
 
         if let Ok((i, v)) = Nullable::try_parse(&text[parse_pointer..]) {
             return Ok((parse_pointer + i, PrimaryType::Nullable(Box::new(v))));
@@ -150,7 +150,7 @@ impl<'a> TryParse<'a, Self> for PrimitiveType<'a> {
     where
         Self: Sized,
     {
-        let mut parse_pointer = skip_whitespace(text);
+        let mut parse_pointer = skip_whitespace_and_comments(text);
         let start = parse_pointer;
         let delta_type = &text[parse_pointer..]
             .chars()
@@ -183,7 +183,7 @@ impl<'a>  TryParse<'a, Type<'a>> for Nullable {
     fn try_parse(text: &'a str) -> ParseResult<Type<'a>>
         where
             Self: Sized {
-        let mut parse_pointer = skip_whitespace(text);
+        let mut parse_pointer = skip_whitespace_and_comments(text);
         if !(text[parse_pointer..].starts_with("nullable") && followed_by_whitespace(&text[parse_pointer..], 8)) {
             return Err(
                 Box::new(ParseError::InvalidInput { 
@@ -213,7 +213,7 @@ impl<'a> TryParse<'a, Self> for TableType<'a> {
     where
         Self: Sized,
     {
-        let mut parse_pointer = skip_whitespace(text);
+        let mut parse_pointer = skip_whitespace_and_comments(text);
 
         if !(text[parse_pointer..].starts_with("table")
            && followed_by_whitespace(&text[parse_pointer..], 5))
@@ -238,7 +238,7 @@ impl<'a> TryParse<'a, Vec<FieldSpecification<'a>>> for Vec<FieldSpecification<'a
     where
         Self: Sized,
     {
-        let mut parse_pointer = skip_whitespace(text);
+        let mut parse_pointer = skip_whitespace_and_comments(text);
 
         if next_char(&text[parse_pointer..]).unwrap_or(' ') != operators::OPEN_BRACKET {
             return Err(Box::new(ParseError::InvalidInput {
@@ -253,7 +253,7 @@ impl<'a> TryParse<'a, Vec<FieldSpecification<'a>>> for Vec<FieldSpecification<'a
         loop {
             let (delta, val) = FieldSpecification::try_parse(&text[parse_pointer..])?;
             parse_pointer += delta;
-            parse_pointer += skip_whitespace(&text[parse_pointer..]);
+            parse_pointer += skip_whitespace_and_comments(&text[parse_pointer..]);
             row_spec.push(val);
 
             if next_char(&text[parse_pointer..]).unwrap_or(' ') == operators::CLOSE_BRACKET {
@@ -285,11 +285,11 @@ impl<'a> TryParse<'a, Self> for FieldSpecification<'a> {
     where
         Self: Sized,
     {
-        let mut parse_pointer = skip_whitespace(text);
+        let mut parse_pointer = skip_whitespace_and_comments(text);
         let (delta, name) = Identifier::try_parse(&text[parse_pointer..])?;
 
         parse_pointer += delta;
-        parse_pointer += skip_whitespace(&text[parse_pointer..]);
+        parse_pointer += skip_whitespace_and_comments(&text[parse_pointer..]);
 
         if next_char(&text[parse_pointer..]).unwrap_or(' ') != operators::EQUAL {
             return Err(Box::new(ParseError::InvalidInput {

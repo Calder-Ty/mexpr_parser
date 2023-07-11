@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::{parser::{expressions::Expression, parse_utils::{ParseResult, skip_whitespace, next_char, self, gen_error_ctx}, keywords::is_func_keyword, identifier::Identifier, operators}, ERR_CONTEXT_SIZE, ParseError};
+use crate::{parser::{expressions::Expression, parse_utils::{ParseResult, skip_whitespace_and_comments, next_char, self, gen_error_ctx}, keywords::is_func_keyword, identifier::Identifier, operators}, ERR_CONTEXT_SIZE, ParseError};
 
 use super::PrimaryExpression;
 
@@ -19,7 +19,7 @@ impl<'a> Invocation<'a> {
 
     pub fn try_parse(text: &'a str) -> ParseResult<Invocation<'a>> {
         // To start, we need to identifiy the calling Expresion. Lets try:
-        let mut parse_pointer = skip_whitespace(text);
+        let mut parse_pointer = skip_whitespace_and_comments(text);
 
         // Check if is a Keyword function. This is not well documented in the standard. But there
         // are a few Keywords that are actually functions. We Should check if it is one of them.
@@ -40,7 +40,7 @@ impl<'a> Invocation<'a> {
 
         parse_pointer += delta;
         let mut args = vec![];
-        parse_pointer += skip_whitespace(&text[parse_pointer..]);
+        parse_pointer += skip_whitespace_and_comments(&text[parse_pointer..]);
         if next_char(&text[parse_pointer..]).unwrap_or(' ') != (operators::OPEN_PAREN) {
             // It is invalid for a invokation to not start with '('
             return Err(Box::new(ParseError::InvalidInput {
@@ -69,7 +69,7 @@ impl<'a> Invocation<'a> {
                 Expression::try_parse_with_lookahead(&text[parse_pointer..], arg_lookahead)?;
             args.push(arg);
             parse_pointer += delta;
-            parse_pointer = parse_pointer + parse_utils::skip_whitespace(&text[parse_pointer..]);
+            parse_pointer = parse_pointer + parse_utils::skip_whitespace_and_comments(&text[parse_pointer..]);
 
             // If we come to the end of the text of the invocation, we want
             // to end
@@ -99,7 +99,7 @@ impl<'a> Invocation<'a> {
 
 /// Validates that the text is followed by a `,` or `)`
 fn arg_lookahead(text: &str) -> bool {
-    let lookahead_pointer = skip_whitespace(text);
+    let lookahead_pointer = skip_whitespace_and_comments(text);
 
     if text[lookahead_pointer..].chars().next().unwrap_or(')') == ')' {
         true

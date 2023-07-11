@@ -58,7 +58,7 @@ impl<'a> Literal<'a> {
 
     fn try_parse_logical(text: &str) -> ParseResult<Self> {
         // true?
-        let text_start = parse_utils::skip_whitespace(text);
+        let text_start = parse_utils::skip_whitespace_and_comments(text);
         if text[text_start..].starts_with("true") {
             return Ok((text_start + 4, Self::Logical(true)));
         }
@@ -73,7 +73,7 @@ impl<'a> Literal<'a> {
 
     pub(crate) fn try_parse_text(text: &'a str) -> ParseResult<Self> {
         // is there the initial `"`?
-        let mut text_start = parse_utils::skip_whitespace(text);
+        let mut text_start = parse_utils::skip_whitespace_and_comments(text);
         if text.chars().nth(text_start).unwrap_or(' ') == operators::DOUBLE_QUOTE {
             // Find the terminal `"`? Remember Escapes!
             text_start += 1;
@@ -134,7 +134,7 @@ impl<'a> Literal<'a> {
     }
 
     fn try_parse_null(text: &'a str) -> ParseResult<Self> {
-        let parse_pointer = parse_utils::skip_whitespace(text);
+        let parse_pointer = parse_utils::skip_whitespace_and_comments(text);
         // What if Null is the Final entity?
         if text[parse_pointer..].len() == keywords::NULL.len() {
             if &text[parse_pointer..parse_pointer + keywords::NULL.len()] == keywords::NULL {
@@ -187,7 +187,7 @@ impl<'a> Literal<'a> {
     // sign: one of
     //      + -
     fn try_parse_number(text: &'a str) -> ParseResult<Self> {
-        let mut parse_pointer = parse_utils::skip_whitespace(text);
+        let mut parse_pointer = parse_utils::skip_whitespace_and_comments(text);
 
         // 0x1234
 
@@ -295,7 +295,7 @@ impl<'a> Literal<'a> {
 
     fn try_parse_verbatim_literal(text: &'a str) -> ParseResult<Self> {
         // Is there the initial `"`?
-        let text_start = parse_utils::skip_whitespace(text);
+        let text_start = parse_utils::skip_whitespace_and_comments(text);
         if text[text_start..].starts_with(r#"#!""#) {
             // Find the terminal `"`? Remember Escapes!
             let mut skip = false;

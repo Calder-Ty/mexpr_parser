@@ -7,7 +7,7 @@ use serde::Serialize;
 use crate::parser::core::TryParse;
 use crate::parser::identifier::Identifier;
 use crate::parser::parse_utils::{
-    followed_by_valid_seperator, followed_by_whitespace, gen_error_ctx, next_char, skip_whitespace,
+    followed_by_valid_seperator, followed_by_whitespace, gen_error_ctx, next_char, skip_whitespace_and_comments,
     ParseResult,
 };
 use crate::{ParseError, ERR_CONTEXT_SIZE};
@@ -52,7 +52,7 @@ impl<'a> TryParse<'a, Self> for FunctionExpression<'a> {
     where
         Self: Sized,
     {
-        let mut parse_pointer = skip_whitespace(text);
+        let mut parse_pointer = skip_whitespace_and_comments(text);
 
         // Must start with open `(`
         if next_char(&text[parse_pointer..]).unwrap_or(' ') != '(' {
@@ -64,7 +64,7 @@ impl<'a> TryParse<'a, Self> for FunctionExpression<'a> {
         parse_pointer += 1; // Skip `(`
         let (delta, parameters) = FunctionParameters::try_parse(&text[parse_pointer..])?;
         parse_pointer += delta;
-        parse_pointer += skip_whitespace(&text[parse_pointer..]);
+        parse_pointer += skip_whitespace_and_comments(&text[parse_pointer..]);
 
         // Close Params with `)`
         if next_char(&text[parse_pointer..]).unwrap_or(' ') != ')' {
@@ -81,7 +81,7 @@ impl<'a> TryParse<'a, Self> for FunctionExpression<'a> {
         };
 
         parse_pointer += delta;
-        parse_pointer += skip_whitespace(&text[parse_pointer..]);
+        parse_pointer += skip_whitespace_and_comments(&text[parse_pointer..]);
 
         // Go to the body
         if !(text[parse_pointer..].starts_with("=>")
@@ -123,14 +123,14 @@ impl<'a> TryParse<'a, Self> for FunctionParameters<'a> {
         let mut fixed = vec![];
         let mut optional = vec![];
 
-        let mut parse_pointer = skip_whitespace(text);
+        let mut parse_pointer = skip_whitespace_and_comments(text);
         // First fixed
         while let Ok((delta, param)) = FuncParameter::try_parse(&text[parse_pointer..]) {
             parse_pointer += delta;
             fixed.push(param);
 
             // Lookahead for ,
-            let lookahead_pointer = skip_whitespace(&text[parse_pointer..]);
+            let lookahead_pointer = skip_whitespace_and_comments(&text[parse_pointer..]);
             if text[parse_pointer..].chars().next().unwrap_or(' ') != ',' {
                 // No comma, means there are no more parameters
                 break;
@@ -140,7 +140,7 @@ impl<'a> TryParse<'a, Self> for FunctionParameters<'a> {
 
         // Then optional
         loop {
-            parse_pointer += skip_whitespace(&text[parse_pointer..]);
+            parse_pointer += skip_whitespace_and_comments(&text[parse_pointer..]);
             // Check for optional keyword
             if !(text[parse_pointer..].starts_with("optional")
                 && followed_by_whitespace(&text[parse_pointer..], 8))
@@ -153,7 +153,7 @@ impl<'a> TryParse<'a, Self> for FunctionParameters<'a> {
             parse_pointer += delta;
             optional.push(param);
             // Lookahead for ,
-            let lookahead_pointer = skip_whitespace(&text[parse_pointer..]);
+            let lookahead_pointer = skip_whitespace_and_comments(&text[parse_pointer..]);
             if text[parse_pointer..].chars().next().unwrap_or(' ') != ',' {
                 // No comma, means there are no more parameters
                 break;
@@ -173,12 +173,12 @@ pub(crate) struct FuncParameter<'a> {
 
 impl<'a> TryParse<'a, Self> for FuncParameter<'a> {
     fn try_parse(text: &'a str) -> ParseResult<Self> {
-        let mut parse_pointer = skip_whitespace(text);
+        let mut parse_pointer = skip_whitespace_and_comments(text);
         let (delta, ident) = Identifier::try_parse(&text[parse_pointer..])?;
 
         parse_pointer += delta;
 
-        let lookahead_pointer = parse_pointer + skip_whitespace(&text[parse_pointer..]);
+        let lookahead_pointer = parse_pointer + skip_whitespace_and_comments(&text[parse_pointer..]);
         let next_val = text[lookahead_pointer..].chars().next().unwrap_or(',');
         if [',', ')'].contains(&next_val) {
             return Ok((
@@ -210,7 +210,7 @@ pub(crate) struct Assertion<'a> {
 
 impl<'a> TryParse<'a, Self> for Assertion<'a> {
     fn try_parse(text: &'a str) -> ParseResult<Self> {
-        let mut parse_pointer = skip_whitespace(text);
+        let mut parse_pointer = skip_whitespace_and_comments(text);
 
         if !(text[parse_pointer..].starts_with("as")
             && followed_by_whitespace(&text[parse_pointer..], 2))
@@ -223,14 +223,14 @@ impl<'a> TryParse<'a, Self> for Assertion<'a> {
         };
 
         parse_pointer += 2; // skip `as`
-        parse_pointer += skip_whitespace(&text[parse_pointer..]);
+        parse_pointer += skip_whitespace_and_comments(&text[parse_pointer..]);
 
         // nullable-primitive-type allows the text "nullable" to appear
         if text[parse_pointer..].starts_with("nullable")
             && followed_by_whitespace(&text[parse_pointer..], 8)
         {
             parse_pointer += 8;
-            parse_pointer += skip_whitespace(&text[parse_pointer..])
+            parse_pointer += skip_whitespace_and_comments(&text[parse_pointer..])
         };
 
         let mut value = None;

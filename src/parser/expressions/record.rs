@@ -19,7 +19,7 @@ use serde::Serialize;
 use crate::{
     parser::{
         identifier::Identifier,
-        parse_utils::{gen_error_ctx, skip_whitespace, ParseResult, next_char}, operators,
+        parse_utils::{gen_error_ctx, skip_whitespace_and_comments, ParseResult, next_char}, operators,
     },
     ParseError, ERR_CONTEXT_SIZE,
 };
@@ -39,7 +39,7 @@ pub(crate) struct Field<'a> {
 
 impl<'a> Record<'a> {
     pub fn try_parse(text: &'a str) -> ParseResult<Self> {
-        let mut parse_pointer = skip_whitespace(text);
+        let mut parse_pointer = skip_whitespace_and_comments(text);
 
         if !&text[parse_pointer..].starts_with('[') {
             // Not a record
@@ -62,7 +62,7 @@ impl<'a> Record<'a> {
 
             let (delta, name) = Identifier::try_parse_generalized(&text[parse_pointer..])?;
             parse_pointer += delta;
-            parse_pointer += skip_whitespace(&text[parse_pointer..]);
+            parse_pointer += skip_whitespace_and_comments(&text[parse_pointer..]);
 
             if next_char(&text[parse_pointer..]).unwrap_or(' ') != operators::EQUAL {
                 // The next character must be a '='.
@@ -78,7 +78,7 @@ impl<'a> Record<'a> {
             fields.push(Field { name, expr });
 
             parse_pointer += delta;
-            parse_pointer += skip_whitespace(&text[parse_pointer..]);
+            parse_pointer += skip_whitespace_and_comments(&text[parse_pointer..]);
 
             if next_char(&text[parse_pointer..]).unwrap_or(operators::CLOSE_BRACKET) == operators::CLOSE_BRACKET {
                 // End of the record,

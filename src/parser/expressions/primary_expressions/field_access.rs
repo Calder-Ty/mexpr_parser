@@ -5,7 +5,7 @@ use crate::{
         core::TryParse,
         identifier::Identifier,
         operators,
-        parse_utils::{gen_error_ctx, next_char, skip_whitespace, ParseResult},
+        parse_utils::{gen_error_ctx, next_char, skip_whitespace_and_comments, ParseResult},
     },
     ParseError, ERR_CONTEXT_SIZE,
 };
@@ -34,7 +34,7 @@ impl<'a> TryParse<'a, Self> for FieldAccess<'a> {
     where
         Self: Sized,
     {
-        let mut parse_pointer = skip_whitespace(text);
+        let mut parse_pointer = skip_whitespace_and_comments(text);
 
         // For FieldAccess to be valid, There _has_ to be an '[' somewhere near.
         // To ensure that we are not in a situation where we recurse forever
@@ -80,7 +80,7 @@ impl<'a> TryParse<'a, Self> for FieldAccess<'a> {
         let (delta, selector) = Identifier::try_parse_generalized(&text[parse_pointer..])?;
 
         parse_pointer += delta; // Advance past the `]`
-        parse_pointer += skip_whitespace(&text[parse_pointer..]);
+        parse_pointer += skip_whitespace_and_comments(&text[parse_pointer..]);
 
         if next_char(&text[parse_pointer..]).unwrap_or(' ') != operators::CLOSE_BRACKET {
             return Err(Box::new(ParseError::InvalidInput {

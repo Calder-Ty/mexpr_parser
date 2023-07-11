@@ -6,7 +6,7 @@ use crate::{parser::keywords::is_keyword, ERR_CONTEXT_SIZE};
 
 use super::{
     literal::Literal,
-    parse_utils::{self, gen_error_ctx, next_char, skip_whitespace, ParseError, ParseResult},
+    parse_utils::{self, gen_error_ctx, next_char, skip_whitespace_and_comments, ParseError, ParseResult},
 };
 
 #[inline]
@@ -71,7 +71,7 @@ impl<'a> Identifier<'a> {
             return Ok(res);
         }
 
-        let mut parse_pointer = skip_whitespace(text);
+        let mut parse_pointer = skip_whitespace_and_comments(text);
         let start = parse_pointer;
 
         // Between each space seperated texts
@@ -99,7 +99,7 @@ impl<'a> Identifier<'a> {
             };
             parse_pointer += delta;
             // lookahead space check
-            let lookahead = skip_whitespace(&text[parse_pointer..]);
+            let lookahead = skip_whitespace_and_comments(&text[parse_pointer..]);
             if let Some(c) = next_char(&text[parse_pointer + lookahead..]) {
                 if !(is_identifier_part(&c) || c.is_number_decimal_digit()) {
                     break;
@@ -122,7 +122,7 @@ impl<'a> Identifier<'a> {
     /// Not Public because always used in conjuction with
     /// Regular identifiers or Generalized Identifiers
     fn try_parse_quoted(text: &'a str) -> ParseResult<Self> {
-        let mut parse_pointer = skip_whitespace(text);
+        let mut parse_pointer = skip_whitespace_and_comments(text);
         if text[parse_pointer..].starts_with(r#"#""#) {
             parse_pointer += 1;
         } else {
@@ -150,7 +150,7 @@ impl<'a> Identifier<'a> {
         if let Ok(res) = Identifier::try_parse_quoted(text) {
             return Ok(res);
         }
-        let parse_pointer = skip_whitespace(text);
+        let parse_pointer = skip_whitespace_and_comments(text);
 
         let mut end = parse_pointer;
 

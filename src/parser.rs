@@ -1,6 +1,6 @@
 use self::{
     expressions::LetExpression,
-    parse_utils::{skip_whitespace, ParseResult},
+    parse_utils::{skip_whitespace_and_comments, ParseResult},
 };
 
 mod core;
@@ -13,17 +13,19 @@ mod operators;
 pub fn try_parse(text: &str) -> ParseResult<Vec<LetExpression<'_>>> {
     let mut res = vec![];
     // Parsing the text
-    let mut parse_pointer = skip_whitespace(text);
+    let mut parse_pointer = skip_whitespace_and_comments(text);
     while parse_pointer < text.len() {
         let (delta, val) = LetExpression::try_parse(&text[parse_pointer..])?;
         res.push(val);
         parse_pointer += delta;
-        parse_pointer += skip_whitespace(&text[parse_pointer..]);
+        parse_pointer += skip_whitespace_and_comments(&text[parse_pointer..]);
     }
     Ok((parse_pointer, res))
 }
 
 pub(crate) mod parse_utils {
+    use std::{eprintln, panic};
+
     use thiserror::Error;
 
     use super::identifier::is_identifier_part;
@@ -36,11 +38,7 @@ pub(crate) mod parse_utils {
     }
 
     pub(crate) fn gen_error_ctx(text: &str, pointer: usize, size: usize) -> String {
-        let start: usize = if pointer < size {
-            0
-        } else {
-            pointer - size
-        };
+        let start: usize = if pointer < size { 0 } else { pointer - size };
 
         let end: usize = if pointer + size > text.len() {
             text.len()
@@ -54,8 +52,35 @@ pub(crate) mod parse_utils {
     }
 
     #[inline]
-    pub(crate) fn skip_whitespace(text: &str) -> usize {
-        text.chars().take_while(|c| (*c).is_whitespace()).count()
+    /// Skips Whitespace and comments, going to next parseable character
+    pub(crate) fn skip_whitespace_and_comments(text: &str) -> usize {
+        let mut parse_pointer = 0;
+        while next_char(&text[parse_pointer..])
+            .unwrap_or('_')
+            .is_whitespace()
+            || text[parse_pointer..].starts_with("//")
+            || text[parse_pointer..].starts_with("/*")
+        {
+            // First skip whitespace
+            parse_pointer += text[parse_pointer..].chars().take_while(|c| (*c).is_whitespace()).count();
+            // Now skip comments
+            if text[parse_pointer..].starts_with("//") {
+                parse_pointer += text[parse_pointer..]
+                    .chars()
+                    .take_while(|c| (*c) != '\n')
+                    .count();
+            } else if text[parse_pointer..].starts_with("/*") {
+                parse_pointer += text[parse_pointer..]
+                    .char_indices()
+                    .skip(1)
+                    .take_while(|(i, c)| {
+                        eprintln!("{}, {}", i, c);
+                        !text[parse_pointer + i - c.len_utf8()..].starts_with("*/")
+                    }
+                    ).count() + 2; // for the one we skipped and to account for the one at the end
+            }
+        }
+        parse_pointer
     }
 
     #[inline]
@@ -80,13 +105,13 @@ pub(crate) mod parse_utils {
     }
 
     #[inline]
-    pub fn next_char(text:&str) -> Option<char> {
+    pub fn next_char(text: &str) -> Option<char> {
         text.chars().next()
     }
 
     #[cfg(test)]
     mod tests {
-        use super::gen_error_ctx;
+        use super::{gen_error_ctx, skip_whitespace_and_comments};
         use rstest::rstest;
 
         #[rstest]
@@ -119,6 +144,20 @@ pub(crate) mod parse_utils {
         ) {
             let res = gen_error_ctx(input, pointer, size);
             assert_eq!(exp_res, res)
+        }
+
+        #[rstest]
+        #[case("      this is some text that has errored", 6)]
+        #[case("//      this is some text that has errored", 42)]
+        #[case("/*      this is some text that*/ has errored", 33)]
+        #[case(
+            "
+this is some text that has errored",
+            1
+        )]
+        fn test_skip_whitespace_and_comments(#[case] input: &str, #[case] expected_delta: usize) {
+            let res = skip_whitespace_and_comments(input);
+            assert_eq!(expected_delta, res)
         }
     }
 }
