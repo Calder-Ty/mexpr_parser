@@ -8,7 +8,7 @@ use crate::{parser::{
 
 use super::Expression;
 
-const EXPR_CONTINUATORS: [&str;13] = [
+const EXPR_CONTINUATORS: [&str;14] = [
     keywords::AND,
     keywords::OR,
     operators::GT_STR,
@@ -22,6 +22,7 @@ const EXPR_CONTINUATORS: [&str;13] = [
     operators::MINUS_STR,
     operators::EQUAL_STR,
     operators::OPEN_BRACKET_STR,
+    operators::OPEN_PAREN_STR,
 ];
 
 /// each-expression:
