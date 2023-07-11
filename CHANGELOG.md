@@ -16,6 +16,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Features
 
+- None
+
+### Bugfixes
+
+- None
+
+## [v0.2.0] 2023-07-11
+[Release Page](https://github.com/Calder-Ty/mexpr_parser/releases/tag/v0.2.0)
+
+### Breaking Changes
+
+- None
+
+### Features
+
 - Add Nullable Type expressions
 - Add Function Expressions
 - Add Comment skipping
