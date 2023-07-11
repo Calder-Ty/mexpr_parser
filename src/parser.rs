@@ -51,7 +51,6 @@ pub(crate) mod parse_utils {
         format!("{ctx:?}\n{padding}^")
     }
 
-    #[inline]
     /// Skips Whitespace and comments, going to next parseable character
     pub(crate) fn skip_whitespace_and_comments(text: &str) -> usize {
         let mut parse_pointer = 0;
@@ -74,7 +73,6 @@ pub(crate) mod parse_utils {
                     .char_indices()
                     .skip(1)
                     .take_while(|(i, c)| {
-                        eprintln!("{}, {}", i, c);
                         !text[parse_pointer + i - c.len_utf8()..].starts_with("*/")
                     }
                     ).count() + 2; // for the one we skipped and to account for the one at the end
