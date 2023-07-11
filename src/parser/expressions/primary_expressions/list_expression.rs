@@ -4,7 +4,7 @@ use crate::{
     parser::{
         expressions::Expression,
         operators,
-        parse_utils::{self, gen_error_ctx, next_char, skip_whitespace_and_comments, ParseResult}, core::TryParse,
+        parse_utils::{self, gen_error_ctx, next_char, skip_whitespace_and_comments, ParseResult}
     },
     ParseError, ERR_CONTEXT_SIZE,
 };
