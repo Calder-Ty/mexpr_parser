@@ -27,6 +27,17 @@ impl<'a> ListExpression<'a> {
         parse_pointer += 1;
         let mut elements = vec![];
         loop {
+            parse_pointer += skip_whitespace_and_comments(&text[parse_pointer..]);
+            if text[parse_pointer..]
+                .chars()
+                .next()
+                .unwrap_or(operators::CLOSE_BRACE)
+                == operators::CLOSE_BRACE
+            {
+                parse_pointer += 1; // Add to account that we have moved one forward
+                break;
+            }
+
             let (delta, el) = Expression::try_parse(&text[parse_pointer..])?;
             elements.push(el);
             parse_pointer += delta + skip_whitespace_and_comments(&text[parse_pointer + delta..]);
@@ -47,6 +58,7 @@ impl<'a> ListExpression<'a> {
                 parse_pointer += 1; // Add to account that we have moved one forward
                 break;
             }
+
             if text[parse_pointer..]
                 .chars()
                 .next()
