@@ -24,7 +24,6 @@ pub fn try_parse(text: &str) -> ParseResult<Vec<LetExpression<'_>>> {
 }
 
 pub(crate) mod parse_utils {
-    use std::{eprintln, panic};
 
     use thiserror::Error;
 

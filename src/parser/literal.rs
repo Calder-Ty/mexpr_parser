@@ -2,7 +2,7 @@ use crate::ERR_CONTEXT_SIZE;
 
 use super::{
     keywords, operators,
-    parse_utils::{self, followed_by_valid_seperator, ParseError, ParseResult, end_of_identifier},
+    parse_utils::{self, ParseError, ParseResult, end_of_identifier},
 };
 use serde::Serialize;
 

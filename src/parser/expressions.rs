@@ -6,7 +6,7 @@ mod record;
 mod type_expressions;
 mod if_expression;
 
-use self::{each::EachExpression, logical::{EqualityExpression, LogicalExpression}, if_expression::IfExpression, function::FunctionExpression};
+use self::{each::EachExpression, logical::LogicalExpression, if_expression::IfExpression, function::FunctionExpression};
 
 use super::{
     core::TryParse,

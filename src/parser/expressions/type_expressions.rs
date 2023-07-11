@@ -1,4 +1,4 @@
-use std::{vec, marker::PhantomData};
+use std::vec;
 
 use serde::Serialize;
 
