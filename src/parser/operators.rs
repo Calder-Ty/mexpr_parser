@@ -32,8 +32,10 @@ pub const CLOSE_BRACE_STR: &str = "}";
 
 
 pub const OPEN_PAREN: char = '(';
-#[allow(dead_code)]
 pub const OPEN_PAREN_STR: &str = "(";
+
+pub const OPEN_AMPERSAND: char = '&';
+pub const OPEN_AMPERSAND_STR: &str = "&";
 
 pub const CLOSE_PAREN: char = ')';
 #[allow(dead_code)]

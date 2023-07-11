@@ -410,6 +410,7 @@ impl<'a> AdditiveExpression<'a> {
         let operator = match text[lookahead_pointer..].chars().next().unwrap_or('_') {
             operators::PLUS => operators::PLUS_STR,
             operators::MINUS => operators::MINUS_STR,
+            operators::OPEN_AMPERSAND => operators::OPEN_AMPERSAND_STR,
             _ => return Ok((parse_pointer, (Self { rhs, lhs: None }))),
         };
 
