@@ -196,7 +196,7 @@ impl<'a>  TryParse<'a, Type<'a>> for Nullable {
 
         let (delta, type_) = Type::try_parse(&text[parse_pointer..])?;
         parse_pointer += delta;
-        return Ok((parse_pointer, type_));
+        Ok((parse_pointer, type_))
     }
 
 }

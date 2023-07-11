@@ -80,7 +80,7 @@ impl<'a> TryParse<'a, Self> for LogicalOr<'a> {
         let (delta, lhs) = LogicalOr::try_parse(&text[parse_pointer..])?;
         parse_pointer += delta;
 
-        return Ok((parse_pointer, Self { rhs, lhs: Some(Box::new(lhs)) }));
+        Ok((parse_pointer, Self { rhs, lhs: Some(Box::new(lhs)) }))
     }
 }
 
@@ -120,7 +120,7 @@ impl<'a> TryParse<'a, Self> for LogicalAnd<'a> {
         let (delta, lhs) = LogicalAnd::try_parse(&text[parse_pointer..])?;
         parse_pointer += delta;
 
-        return Ok((parse_pointer, Self { rhs, lhs: Some(Box::new(lhs)) }));
+        Ok((parse_pointer, Self { rhs, lhs: Some(Box::new(lhs)) }))
     }
 }
 
