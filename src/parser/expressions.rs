@@ -1,12 +1,15 @@
 mod each;
 mod function;
+mod if_expression;
 mod logical;
 mod primary_expressions;
 mod record;
 mod type_expressions;
-mod if_expression;
 
-use self::{each::EachExpression, logical::LogicalExpression, if_expression::IfExpression, function::FunctionExpression};
+use self::{
+    each::EachExpression, function::FunctionExpression, if_expression::IfExpression,
+    logical::LogicalExpression,
+};
 
 use super::{
     core::TryParse,
@@ -64,7 +67,7 @@ impl<'a> Expression<'a> {
             }
         }
         if let Ok((i, val)) = PrimaryExpression::try_parse_with_lookahead(text, &lookahead_func) {
-            // Going to do Lookahead pushdown. This is because PrimaryExpressions have a 
+            // Going to do Lookahead pushdown. This is because PrimaryExpressions have a
             // tendency to exit early (because they are very recursive)
             return Ok((i, Expression::Primary(val)));
         }
@@ -152,7 +155,7 @@ impl<'a> LetExpression<'a> {
             }));
         }
         parse_pointer += keywords::IN.len() + 1; // Skip 'in '
-                            // I Don't care about the In expression right now
+                                                 // I Don't care about the In expression right now
         let (delta, _) = Expression::try_parse(&text[parse_pointer..])?;
 
         Ok((parse_pointer + delta, Self { variable_list }))

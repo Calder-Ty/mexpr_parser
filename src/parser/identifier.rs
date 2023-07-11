@@ -6,7 +6,9 @@ use crate::{parser::keywords::is_keyword, ERR_CONTEXT_SIZE};
 
 use super::{
     literal::Literal,
-    parse_utils::{self, gen_error_ctx, next_char, skip_whitespace_and_comments, ParseError, ParseResult},
+    parse_utils::{
+        self, gen_error_ctx, next_char, skip_whitespace_and_comments, ParseError, ParseResult,
+    },
 };
 
 #[inline]
@@ -168,14 +170,14 @@ impl<'a> Identifier<'a> {
                 .count()
         };
 
-        if end == parse_pointer || is_keyword(&text[parse_pointer..end]){
+        if end == parse_pointer || is_keyword(&text[parse_pointer..end]) {
             // Identifiers must have _SOME_ text
             // Identifers cannot be keywords
             Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
                 ctx: parse_utils::gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
             }))
-        }  else {
+        } else {
             Ok((
                 end,
                 Self {

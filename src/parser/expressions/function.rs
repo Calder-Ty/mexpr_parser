@@ -7,8 +7,8 @@ use serde::Serialize;
 use crate::parser::core::TryParse;
 use crate::parser::identifier::Identifier;
 use crate::parser::parse_utils::{
-    followed_by_valid_seperator, followed_by_whitespace, gen_error_ctx, next_char, skip_whitespace_and_comments,
-    ParseResult,
+    followed_by_valid_seperator, followed_by_whitespace, gen_error_ctx, next_char,
+    skip_whitespace_and_comments, ParseResult,
 };
 use crate::{ParseError, ERR_CONTEXT_SIZE};
 
@@ -178,7 +178,8 @@ impl<'a> TryParse<'a, Self> for FuncParameter<'a> {
 
         parse_pointer += delta;
 
-        let lookahead_pointer = parse_pointer + skip_whitespace_and_comments(&text[parse_pointer..]);
+        let lookahead_pointer =
+            parse_pointer + skip_whitespace_and_comments(&text[parse_pointer..]);
         let next_val = text[lookahead_pointer..].chars().next().unwrap_or(',');
         if [',', ')'].contains(&next_val) {
             return Ok((

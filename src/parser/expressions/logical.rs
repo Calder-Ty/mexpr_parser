@@ -44,7 +44,6 @@ impl<'a> TryParse<'a, Self> for LogicalExpression<'a> {
     }
 }
 
-
 #[derive(Debug, Serialize, PartialEq)]
 pub(crate) struct LogicalOr<'a> {
     rhs: LogicalAnd<'a>,
@@ -53,11 +52,12 @@ pub(crate) struct LogicalOr<'a> {
 
 impl<'a> LogicalOr<'a> {
     #[cfg(test)]
-    pub(crate) fn new(rhs: LogicalAnd<'a>, lhs: Option<Box<LogicalOr<'a>>>) -> Self { Self { rhs, lhs } }
+    pub(crate) fn new(rhs: LogicalAnd<'a>, lhs: Option<Box<LogicalOr<'a>>>) -> Self {
+        Self { rhs, lhs }
+    }
 }
 
 impl<'a> TryParse<'a, Self> for LogicalOr<'a> {
-
     fn try_parse(text: &'a str) -> ParseResult<Self>
     where
         Self: Sized,
@@ -68,11 +68,12 @@ impl<'a> TryParse<'a, Self> for LogicalOr<'a> {
 
         parse_pointer += delta;
 
-        let lookahead_pointer = parse_pointer + skip_whitespace_and_comments(&text[parse_pointer..]);
+        let lookahead_pointer =
+            parse_pointer + skip_whitespace_and_comments(&text[parse_pointer..]);
         if !(text[lookahead_pointer..].starts_with(keywords::OR)
             && followed_by_whitespace(&text[lookahead_pointer..], keywords::OR.len()))
         {
-            return Ok((parse_pointer, Self { rhs, lhs:None }));
+            return Ok((parse_pointer, Self { rhs, lhs: None }));
         };
 
         parse_pointer = lookahead_pointer + keywords::OR.len();
@@ -80,11 +81,15 @@ impl<'a> TryParse<'a, Self> for LogicalOr<'a> {
         let (delta, lhs) = LogicalOr::try_parse(&text[parse_pointer..])?;
         parse_pointer += delta;
 
-        Ok((parse_pointer, Self { rhs, lhs: Some(Box::new(lhs)) }))
+        Ok((
+            parse_pointer,
+            Self {
+                rhs,
+                lhs: Some(Box::new(lhs)),
+            },
+        ))
     }
 }
-
-
 
 #[derive(Debug, Serialize, PartialEq)]
 pub(crate) struct LogicalAnd<'a> {
@@ -94,7 +99,9 @@ pub(crate) struct LogicalAnd<'a> {
 
 impl<'a> LogicalAnd<'a> {
     #[cfg(test)]
-    pub(crate) fn new(rhs: IsExpression<'a>, lhs: Option<Box<LogicalAnd<'a>>>) -> Self { Self { rhs, lhs } }
+    pub(crate) fn new(rhs: IsExpression<'a>, lhs: Option<Box<LogicalAnd<'a>>>) -> Self {
+        Self { rhs, lhs }
+    }
 }
 
 impl<'a> TryParse<'a, Self> for LogicalAnd<'a> {
@@ -108,11 +115,12 @@ impl<'a> TryParse<'a, Self> for LogicalAnd<'a> {
 
         parse_pointer += delta;
 
-        let lookahead_pointer = parse_pointer + skip_whitespace_and_comments(&text[parse_pointer..]);
+        let lookahead_pointer =
+            parse_pointer + skip_whitespace_and_comments(&text[parse_pointer..]);
         if !(text[lookahead_pointer..].starts_with(keywords::AND)
             && followed_by_whitespace(&text[lookahead_pointer..], keywords::AND.len()))
         {
-            return Ok((parse_pointer, Self { rhs, lhs:None }));
+            return Ok((parse_pointer, Self { rhs, lhs: None }));
         };
 
         parse_pointer = lookahead_pointer + keywords::AND.len();
@@ -120,7 +128,13 @@ impl<'a> TryParse<'a, Self> for LogicalAnd<'a> {
         let (delta, lhs) = LogicalAnd::try_parse(&text[parse_pointer..])?;
         parse_pointer += delta;
 
-        Ok((parse_pointer, Self { rhs, lhs: Some(Box::new(lhs)) }))
+        Ok((
+            parse_pointer,
+            Self {
+                rhs,
+                lhs: Some(Box::new(lhs)),
+            },
+        ))
     }
 }
 
@@ -213,9 +227,8 @@ impl<'a> TryParse<'a, Self> for AsExpression<'a> {
     }
 }
 
-
 /// The spec indicates that you could have lots of chained as type as type as type.
-/// But that seems really bad, and is recursive causing overflows. I'm going to 
+/// But that seems really bad, and is recursive causing overflows. I'm going to
 /// disallow it for now.
 #[derive(Debug, Serialize, PartialEq)]
 pub(crate) struct AsExressionWithNullable<'a> {
@@ -280,7 +293,8 @@ impl<'a> TryParse<'a, Self> for EqualityExpression<'a> {
         let (delta, rhs) = RelationalExpression::try_parse(&text[parse_pointer..])?;
         parse_pointer += delta;
 
-        let lookahead_pointer = parse_pointer + skip_whitespace_and_comments(&text[parse_pointer..]);
+        let lookahead_pointer =
+            parse_pointer + skip_whitespace_and_comments(&text[parse_pointer..]);
         let mut lookahead_iter = text[lookahead_pointer..].chars();
         let operator = (lookahead_iter.next(), lookahead_iter.next());
 
@@ -339,7 +353,8 @@ impl<'a> TryParse<'a, Self> for RelationalExpression<'a> {
         let (delta, rhs) = AdditiveExpression::try_parse(&text[parse_pointer..])?;
         parse_pointer += delta;
 
-        let lookahead_pointer = parse_pointer + skip_whitespace_and_comments(&text[parse_pointer..]);
+        let lookahead_pointer =
+            parse_pointer + skip_whitespace_and_comments(&text[parse_pointer..]);
         let mut lookahead_iter = text[lookahead_pointer..].chars();
         let operator = (lookahead_iter.next(), lookahead_iter.next());
 
@@ -405,7 +420,8 @@ impl<'a> AdditiveExpression<'a> {
         let (delta, rhs) = MultiplicativeExpression::try_parse(&text[parse_pointer..])?;
         parse_pointer += delta;
 
-        let lookahead_pointer = parse_pointer + skip_whitespace_and_comments(&text[parse_pointer..]);
+        let lookahead_pointer =
+            parse_pointer + skip_whitespace_and_comments(&text[parse_pointer..]);
 
         let operator = match text[lookahead_pointer..].chars().next().unwrap_or('_') {
             operators::PLUS => operators::PLUS_STR,
@@ -446,7 +462,8 @@ impl<'a> MultiplicativeExpression<'a> {
         let (delta, rhs) = MetadataExpression::try_parse(&text[parse_pointer..])?;
         parse_pointer += delta;
 
-        let lookahead_pointer = parse_pointer + skip_whitespace_and_comments(&text[parse_pointer..]);
+        let lookahead_pointer =
+            parse_pointer + skip_whitespace_and_comments(&text[parse_pointer..]);
 
         let operator = match text[lookahead_pointer..].chars().next().unwrap_or('_') {
             operators::STAR => operators::STAR_STR,
@@ -498,7 +515,8 @@ impl<'a> MetadataExpression<'a> {
         let (delta, rhs) = UnaryExpression::try_parse(&text[parse_pointer..])?;
         parse_pointer += delta;
 
-        let lookahead_pointer = parse_pointer + skip_whitespace_and_comments(&text[parse_pointer..]);
+        let lookahead_pointer =
+            parse_pointer + skip_whitespace_and_comments(&text[parse_pointer..]);
         if !(text[lookahead_pointer..].starts_with(keywords::META)
             && followed_by_valid_seperator(&text[lookahead_pointer..], 4))
         {

@@ -60,7 +60,10 @@ pub(crate) mod parse_utils {
             || text[parse_pointer..].starts_with("/*")
         {
             // First skip whitespace
-            parse_pointer += text[parse_pointer..].chars().take_while(|c| (*c).is_whitespace()).count();
+            parse_pointer += text[parse_pointer..]
+                .chars()
+                .take_while(|c| (*c).is_whitespace())
+                .count();
             // Now skip comments
             if text[parse_pointer..].starts_with("//") {
                 parse_pointer += text[parse_pointer..]
@@ -73,8 +76,9 @@ pub(crate) mod parse_utils {
                     .skip(1)
                     .take_while(|(i, c)| {
                         !text[parse_pointer + i - c.len_utf8()..].starts_with("*/")
-                    }
-                    ).count() + 2; // for the one we skipped and to account for the one at the end
+                    })
+                    .count()
+                    + 2; // for the one we skipped and to account for the one at the end
             }
         }
         parse_pointer

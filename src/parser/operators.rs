@@ -22,14 +22,12 @@ pub const CLOSE_BRACKET: char = ']';
 #[allow(dead_code)]
 pub const CLOSE_BRACKET_STR: &str = "]";
 
-
 pub const OPEN_BRACE: char = '{';
 pub const OPEN_BRACE_STR: &str = "{";
 
 pub const CLOSE_BRACE: char = '}';
 #[allow(dead_code)]
 pub const CLOSE_BRACE_STR: &str = "}";
-
 
 pub const OPEN_PAREN: char = '(';
 pub const OPEN_PAREN_STR: &str = "(";

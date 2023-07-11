@@ -82,7 +82,10 @@ impl<'a> PrimaryExpression<'a> {
         })
     }
 
-    pub fn try_parse_with_lookahead<F>(text: &'a str, lookahead_func: F) -> Result<(usize, Self), ParseError>
+    pub fn try_parse_with_lookahead<F>(
+        text: &'a str,
+        lookahead_func: F,
+    ) -> Result<(usize, Self), ParseError>
     where
         F: Fn(&'a str) -> bool,
     {

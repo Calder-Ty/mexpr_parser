@@ -4,7 +4,7 @@ use crate::{
     parser::{
         expressions::Expression,
         operators,
-        parse_utils::{self, gen_error_ctx, next_char, skip_whitespace_and_comments, ParseResult}
+        parse_utils::{self, gen_error_ctx, next_char, skip_whitespace_and_comments, ParseResult},
     },
     ParseError, ERR_CONTEXT_SIZE,
 };
@@ -46,7 +46,8 @@ impl<'a> ListExpression<'a> {
                 parse_pointer += operators::RANGE.len();
                 let (delta, el) = Expression::try_parse(&text[parse_pointer..])?;
                 elements.push(el);
-                parse_pointer += delta + skip_whitespace_and_comments(&text[parse_pointer + delta..]);
+                parse_pointer +=
+                    delta + skip_whitespace_and_comments(&text[parse_pointer + delta..]);
             }
 
             if text[parse_pointer..]
@@ -77,7 +78,6 @@ impl<'a> ListExpression<'a> {
         Ok((parse_pointer, Self { elements }))
     }
 }
-
 
 #[cfg(test)]
 mod tests {

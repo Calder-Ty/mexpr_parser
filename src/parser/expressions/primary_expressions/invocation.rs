@@ -1,9 +1,17 @@
 use serde::Serialize;
 
-use crate::{parser::{expressions::Expression, parse_utils::{ParseResult, skip_whitespace_and_comments, next_char, self, gen_error_ctx}, keywords::is_func_keyword, identifier::Identifier, operators}, ERR_CONTEXT_SIZE, ParseError};
+use crate::{
+    parser::{
+        expressions::Expression,
+        identifier::Identifier,
+        keywords::is_func_keyword,
+        operators,
+        parse_utils::{self, gen_error_ctx, next_char, skip_whitespace_and_comments, ParseResult},
+    },
+    ParseError, ERR_CONTEXT_SIZE,
+};
 
 use super::PrimaryExpression;
-
 
 #[derive(Debug, Serialize, PartialEq)]
 pub(crate) struct Invocation<'a> {
@@ -53,10 +61,9 @@ impl<'a> Invocation<'a> {
         // Now we need to Parse the contents of the function invocation
         loop {
             if text[parse_pointer..].chars().next().is_none() {
-                return Err(Box::new(ParseError::InvalidInput
-                    {
+                return Err(Box::new(ParseError::InvalidInput {
                     pointer: parse_pointer,
-                    ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE) 
+                    ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
                 }));
             }
 
@@ -69,7 +76,8 @@ impl<'a> Invocation<'a> {
                 Expression::try_parse_with_lookahead(&text[parse_pointer..], arg_lookahead)?;
             args.push(arg);
             parse_pointer += delta;
-            parse_pointer = parse_pointer + parse_utils::skip_whitespace_and_comments(&text[parse_pointer..]);
+            parse_pointer =
+                parse_pointer + parse_utils::skip_whitespace_and_comments(&text[parse_pointer..]);
 
             // If we come to the end of the text of the invocation, we want
             // to end
@@ -82,7 +90,7 @@ impl<'a> Invocation<'a> {
                     "This is unexpected:\n{0}",
                     gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE)
                 )
-            } else if next_char(&text[parse_pointer..]).is_some()  {
+            } else if next_char(&text[parse_pointer..]).is_some() {
                 parse_pointer += 1; // Skip the comma
             }
         }
@@ -104,7 +112,7 @@ fn arg_lookahead(text: &str) -> bool {
     if text[lookahead_pointer..].chars().next().unwrap_or(')') == ')' {
         true
     } else {
-        text[lookahead_pointer..].chars().next().unwrap_or(',') == ',' 
+        text[lookahead_pointer..].chars().next().unwrap_or(',') == ','
     }
 }
 
@@ -160,20 +168,20 @@ mod tests {
                         Invocation {
                             invoker: PrimaryExpression::Identifier(Identifier::new ( "Date.ToText" )),
                             args: vec![
-                                Expression::Primary(PrimaryExpression::FieldAccess(Box::new(FieldAccess::new ( 
+                                Expression::Primary(PrimaryExpression::FieldAccess(Box::new(FieldAccess::new (
                                     None,
                                     Identifier::new ( "Start of Month")
-                                )))), 
+                                )))),
                                 Expression::Primary(PrimaryExpression::Literal(Literal::Text("MMM yyyy")))
-                            ] 
+                            ]
                         }
-                    ))) 
+                    )))
                 )))
     ]
         },
     100
 ) ]
-     #[case(
+    #[case(
      r#"This("Not a variable", true, identifier)"#,
          Invocation {
          invoker: PrimaryExpression::Identifier(Identifier::new("This")),
@@ -182,24 +190,23 @@ mod tests {
           Expression::Primary(PrimaryExpression::Literal(Literal::Logical(true))),
           Expression::Primary(PrimaryExpression::Identifier(Identifier::new("identifier")),
      )],
- 
          },
      40
  ) ]
-     #[case(
-     r#"This(#!" Not a 235.E10 variable"  ,false  , 1234.5 , 0x25)"#, 
+    #[case(
+     r#"This(#!" Not a 235.E10 variable"  ,false  , 1234.5 , 0x25)"#,
          Invocation {
-     invoker: PrimaryExpression::Identifier(Identifier::new("This")), 
+     invoker: PrimaryExpression::Identifier(Identifier::new("This")),
      args: vec![
-         Expression::Primary(PrimaryExpression::Literal(Literal::Verbatim(" Not a 235.E10 variable"))), 
+         Expression::Primary(PrimaryExpression::Literal(Literal::Verbatim(" Not a 235.E10 variable"))),
          Expression::Primary(PrimaryExpression::Literal(Literal::Logical(false))),
          Expression::Primary(PrimaryExpression::Literal(Literal::Number(NumberType::Float(1234.5)))),
          Expression::Primary(PrimaryExpression::Literal(Literal::Number(NumberType::Int(0x25)))),
      ],
          },
  58) ]
-     #[case(
-     r#"This(" Not a 235.E10 variable", false, 1234.5, 0x25)"#, 
+    #[case(
+     r#"This(" Not a 235.E10 variable", false, 1234.5, 0x25)"#,
          Invocation {
 
      invoker: PrimaryExpression::Identifier(Identifier::new("This")),
@@ -212,7 +219,7 @@ mod tests {
          },
  52)
  ]
-     #[case(
+    #[case(
      r#"#date(" Not a 235.E10 variable", false, 1234.5, 0x25)"#,
          Invocation {
      invoker: PrimaryExpression::Identifier(Identifier::new("#date")),
@@ -235,7 +242,6 @@ mod tests {
 
         assert_eq!(expected, invokation);
         assert_eq!(exp_delta, delta);
-
     }
 
     #[rstest]

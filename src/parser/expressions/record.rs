@@ -19,7 +19,8 @@ use serde::Serialize;
 use crate::{
     parser::{
         identifier::Identifier,
-        parse_utils::{gen_error_ctx, skip_whitespace_and_comments, ParseResult, next_char}, operators,
+        operators,
+        parse_utils::{gen_error_ctx, next_char, skip_whitespace_and_comments, ParseResult},
     },
     ParseError, ERR_CONTEXT_SIZE,
 };
@@ -54,7 +55,9 @@ impl<'a> Record<'a> {
         let mut fields = vec![];
 
         loop {
-            if next_char(&text[parse_pointer..]).unwrap_or(operators::CLOSE_BRACKET) == operators::CLOSE_BRACKET {
+            if next_char(&text[parse_pointer..]).unwrap_or(operators::CLOSE_BRACKET)
+                == operators::CLOSE_BRACKET
+            {
                 // End of the record,
                 parse_pointer += 1;
                 break;
@@ -80,7 +83,9 @@ impl<'a> Record<'a> {
             parse_pointer += delta;
             parse_pointer += skip_whitespace_and_comments(&text[parse_pointer..]);
 
-            if next_char(&text[parse_pointer..]).unwrap_or(operators::CLOSE_BRACKET) == operators::CLOSE_BRACKET {
+            if next_char(&text[parse_pointer..]).unwrap_or(operators::CLOSE_BRACKET)
+                == operators::CLOSE_BRACKET
+            {
                 // End of the record,
                 parse_pointer += 1;
                 break;

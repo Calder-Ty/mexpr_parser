@@ -6,11 +6,11 @@ use crate::{
     parser::{
         core::TryParse,
         identifier::Identifier,
-        operators,
+        keywords, operators,
         parse_utils::{
-            followed_by_whitespace, gen_error_ctx, next_char,
-            skip_whitespace_and_comments, ParseResult,
-        }, keywords,
+            followed_by_whitespace, gen_error_ctx, next_char, skip_whitespace_and_comments,
+            ParseResult,
+        },
     },
     ParseError, ERR_CONTEXT_SIZE,
 };
@@ -96,21 +96,29 @@ pub(crate) enum PrimaryType<'a> {
 impl<'a> PrimaryType<'a> {
     /// For nullable-primitive type
     /// nullable [opt] primitive type
-    pub(crate) fn try_parse_primitive(text: &'a str) -> ParseResult<Self>{
+    pub(crate) fn try_parse_primitive(text: &'a str) -> ParseResult<Self> {
         let (delta, val) = PrimaryType::try_parse(text)?;
         match &val {
             PrimaryType::Nullable(inner) => {
-                if matches!(inner.as_ref(), Type::PrimaryType(PrimaryType::PrimitiveType(_))) {
+                if matches!(
+                    inner.as_ref(),
+                    Type::PrimaryType(PrimaryType::PrimitiveType(_))
+                ) {
                     Ok((delta, val))
                 } else {
-                    Err(Box::new(ParseError::InvalidInput { pointer: 0, ctx: gen_error_ctx(text, 0, ERR_CONTEXT_SIZE) }))
+                    Err(Box::new(ParseError::InvalidInput {
+                        pointer: 0,
+                        ctx: gen_error_ctx(text, 0, ERR_CONTEXT_SIZE),
+                    }))
                 }
-            },
-            PrimaryType::PrimitiveType(_) => { Ok((delta, val)) },
-            _ => Err(Box::new(ParseError::InvalidInput { pointer: 0, ctx: gen_error_ctx(text, 0, ERR_CONTEXT_SIZE) })),
+            }
+            PrimaryType::PrimitiveType(_) => Ok((delta, val)),
+            _ => Err(Box::new(ParseError::InvalidInput {
+                pointer: 0,
+                ctx: gen_error_ctx(text, 0, ERR_CONTEXT_SIZE),
+            })),
         }
     }
-
 }
 impl<'a> PrimaryType<'a> {
     pub fn try_parse(text: &'a str) -> ParseResult<Self> {
@@ -173,24 +181,23 @@ impl<'a> TryParse<'a, Self> for PrimitiveType<'a> {
 }
 
 #[derive(Debug, Serialize, PartialEq)]
-struct Nullable { }
+struct Nullable {}
 
-impl Nullable {
-}
+impl Nullable {}
 
-impl<'a>  TryParse<'a, Type<'a>> for Nullable {
-
+impl<'a> TryParse<'a, Type<'a>> for Nullable {
     fn try_parse(text: &'a str) -> ParseResult<Type<'a>>
-        where
-            Self: Sized {
+    where
+        Self: Sized,
+    {
         let mut parse_pointer = skip_whitespace_and_comments(text);
-        if !(text[parse_pointer..].starts_with("nullable") && followed_by_whitespace(&text[parse_pointer..], 8)) {
-            return Err(
-                Box::new(ParseError::InvalidInput { 
-                    pointer: parse_pointer, 
-                    ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE) 
-                }
-            ));
+        if !(text[parse_pointer..].starts_with("nullable")
+            && followed_by_whitespace(&text[parse_pointer..], 8))
+        {
+            return Err(Box::new(ParseError::InvalidInput {
+                pointer: parse_pointer,
+                ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
+            }));
         };
         parse_pointer += 8;
 
@@ -198,10 +205,7 @@ impl<'a>  TryParse<'a, Type<'a>> for Nullable {
         parse_pointer += delta;
         Ok((parse_pointer, type_))
     }
-
 }
-
-
 
 #[derive(Debug, Serialize, PartialEq)]
 pub(crate) struct TableType<'a> {
@@ -216,7 +220,7 @@ impl<'a> TryParse<'a, Self> for TableType<'a> {
         let mut parse_pointer = skip_whitespace_and_comments(text);
 
         if !(text[parse_pointer..].starts_with("table")
-           && followed_by_whitespace(&text[parse_pointer..], 5))
+            && followed_by_whitespace(&text[parse_pointer..], 5))
         {
             return Err(Box::new(ParseError::InvalidInput {
                 pointer: parse_pointer,
@@ -228,10 +232,9 @@ impl<'a> TryParse<'a, Self> for TableType<'a> {
         let (delta, row_spec) = Vec::<FieldSpecification>::try_parse(&text[parse_pointer..])?;
         parse_pointer += delta;
 
-        Ok((parse_pointer, Self { row_spec } ))
+        Ok((parse_pointer, Self { row_spec }))
     }
 }
-
 
 impl<'a> TryParse<'a, Vec<FieldSpecification<'a>>> for Vec<FieldSpecification<'a>> {
     fn try_parse(text: &'a str) -> ParseResult<Self>
@@ -262,13 +265,13 @@ impl<'a> TryParse<'a, Vec<FieldSpecification<'a>>> for Vec<FieldSpecification<'a
             };
 
             if next_char(&text[parse_pointer..]).unwrap_or(' ') != operators::COMMA {
-            return Err(Box::new(ParseError::InvalidInput {
-                pointer: parse_pointer,
-                ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
-            }));
+                return Err(Box::new(ParseError::InvalidInput {
+                    pointer: parse_pointer,
+                    ctx: gen_error_ctx(text, parse_pointer, ERR_CONTEXT_SIZE),
+                }));
             }
             parse_pointer += 1; //  Skip the `,`
-        };
+        }
 
         Ok((parse_pointer, row_spec))
     }
@@ -316,7 +319,6 @@ mod tests {
     use rstest::rstest;
 
     #[rstest]
-
     #[case("    type nullable text ", 22,
         TypeExpression::PrimaryType(
             PrimaryType::Nullable(
@@ -379,12 +381,11 @@ mod tests {
         assert_eq!(exp_delta, delta);
     }
 
-
     #[rstest]
     #[case("  [ ident = null, val = date ]", 30, vec![FieldSpecification {
         name: Identifier::new("ident"),
         spec: Type::PrimaryType(PrimaryType::PrimitiveType(PrimitiveType { text: "null" }))
-    }, 
+    },
         FieldSpecification {
         name: Identifier::new("val"),
         spec: Type::PrimaryType(PrimaryType::PrimitiveType(PrimitiveType { text: "date" }))
@@ -405,9 +406,6 @@ mod tests {
         assert_eq!(exp_delta, delta);
     }
 
-
-
-
     #[rstest]
     #[case(r#"table [#"Submission Type" = _t, Identifyer = _t]"#,
         48,
@@ -416,7 +414,7 @@ mod tests {
         vec![FieldSpecification {
         name: Identifier::new("Submission Type"),
         spec: Type::Primary(PrimaryExpression::Identifier(Identifier::new( "_t" ))),
-    }, 
+    },
         FieldSpecification {
         name: Identifier::new("Identifyer"),
         spec: Type::Primary(PrimaryExpression::Identifier(Identifier::new( "_t" ))),

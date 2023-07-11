@@ -1,14 +1,17 @@
 use serde::Serialize;
 
-use crate::{parser::{
-    core::TryParse,
-    keywords,
-    parse_utils::{followed_by_whitespace, gen_error_ctx, skip_whitespace_and_comments}, operators,
-}, ERR_CONTEXT_SIZE};
+use crate::{
+    parser::{
+        core::TryParse,
+        keywords, operators,
+        parse_utils::{followed_by_whitespace, gen_error_ctx, skip_whitespace_and_comments},
+    },
+    ERR_CONTEXT_SIZE,
+};
 
 use super::Expression;
 
-const EXPR_CONTINUATORS: [&str;14] = [
+const EXPR_CONTINUATORS: [&str; 14] = [
     keywords::AND,
     keywords::OR,
     operators::GT_STR,
@@ -34,10 +37,11 @@ pub(crate) struct EachExpression<'a> {
     body: Expression<'a>,
 }
 
-
 impl<'a> EachExpression<'a> {
     #[cfg(test)]
-    pub(crate) fn new(body: Expression<'a>) -> Self { Self { body } }
+    pub(crate) fn new(body: Expression<'a>) -> Self {
+        Self { body }
+    }
 }
 
 impl<'a> TryParse<'a, Self> for EachExpression<'a> {
@@ -59,20 +63,21 @@ impl<'a> TryParse<'a, Self> for EachExpression<'a> {
         parse_pointer += keywords::EACH.len();
         // The Specification says the Each Expression should have a function-body,
         // But the function-body is just an Expression.
-        let (delta, body) = Expression::try_parse_with_lookahead(&text[parse_pointer..], each_lookahead)?;
+        let (delta, body) =
+            Expression::try_parse_with_lookahead(&text[parse_pointer..], each_lookahead)?;
         parse_pointer += delta;
 
         Ok((parse_pointer, Self { body }))
     }
 }
 
-fn each_lookahead(text:&str) -> bool {
+fn each_lookahead(text: &str) -> bool {
     let lookahead_pointer = skip_whitespace_and_comments(text);
     for cont in EXPR_CONTINUATORS {
         if text[lookahead_pointer..].starts_with(cont) {
-            return false
+            return false;
         }
-    };
+    }
     true
 }
 
