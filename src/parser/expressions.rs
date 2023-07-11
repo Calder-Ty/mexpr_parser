@@ -63,10 +63,10 @@ impl<'a> Expression<'a> {
                 return Ok((i, Expression::Let(val)));
             }
         }
-        if let Ok((i, val)) = PrimaryExpression::try_parse(text) {
-            if lookahead_func(&text[i..]) {
-                return Ok((i, Expression::Primary(val)));
-            }
+        if let Ok((i, val)) = PrimaryExpression::try_parse_with_lookahead(text, &lookahead_func) {
+            // Going to do Lookahead pushdown. This is because PrimaryExpressions have a 
+            // tendency to exit early (because they are very recursive)
+            return Ok((i, Expression::Primary(val)));
         }
         if let Ok((i, val)) = EachExpression::try_parse(text) {
             if lookahead_func(&text[i..]) {

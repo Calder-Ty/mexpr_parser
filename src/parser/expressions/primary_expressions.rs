@@ -1,25 +1,19 @@
+mod field_access;
 mod invocation;
 mod item_access;
-mod field_access;
 mod list_expression;
 mod parenthesized_expression;
 
 use crate::{
-    parser::{
-        core::TryParse,
-        identifier::Identifier,
-        literal::Literal,
-        parse_utils,
-    },
+    parser::{core::TryParse, identifier::Identifier, literal::Literal, parse_utils},
     ParseError, ERR_CONTEXT_SIZE,
 };
 
 pub(crate) use self::field_access::FieldAccess;
-pub(crate) use self::item_access::ItemAccess;
 pub(crate) use self::invocation::Invocation;
+pub(crate) use self::item_access::ItemAccess;
 pub(crate) use self::list_expression::ListExpression;
 use self::parenthesized_expression::ParenthesizedExpression;
-
 
 use super::{record::Record, Expression};
 use serde::Serialize;
@@ -87,8 +81,57 @@ impl<'a> PrimaryExpression<'a> {
             ctx: parse_utils::gen_error_ctx(text, 0, ERR_CONTEXT_SIZE),
         })
     }
-}
 
+    pub fn try_parse_with_lookahead<F>(text: &'a str, lookahead_func: F) -> Result<(usize, Self), ParseError>
+    where
+        F: Fn(&'a str) -> bool,
+    {
+        if let Ok((i, val)) = Literal::try_parse(text) {
+            if lookahead_func(&text[i..]) {
+                return Ok((i, PrimaryExpression::Literal(val)));
+            }
+        }
+        if let Ok((i, val)) = ItemAccess::try_parse(text) {
+            if lookahead_func(&text[i..]) {
+                return Ok((i, PrimaryExpression::ItemAccess(Box::new(val))));
+            }
+        }
+        if let Ok((i, val)) = FieldAccess::try_parse(text) {
+            if lookahead_func(&text[i..]) {
+                return Ok((i, PrimaryExpression::FieldAccess(Box::new(val))));
+            }
+        }
+        if let Ok((i, val)) = Record::try_parse(text) {
+            if lookahead_func(&text[i..]) {
+                return Ok((i, PrimaryExpression::Record(val)));
+            }
+        }
+        if let Ok((i, val)) = Invocation::try_parse(text) {
+            if lookahead_func(&text[i..]) {
+                return Ok((i, PrimaryExpression::Invoke(Box::new(val))));
+            }
+        }
+        if let Ok((i, val)) = ListExpression::try_parse(text) {
+            if lookahead_func(&text[i..]) {
+                return Ok((i, PrimaryExpression::List(val)));
+            }
+        }
+        if let Ok((i, val)) = Identifier::try_parse(text) {
+            if lookahead_func(&text[i..]) {
+                return Ok((i, PrimaryExpression::Identifier(val)));
+            }
+        }
+        if let Ok((i, val)) = ParenthesizedExpression::try_parse(text) {
+            if lookahead_func(&text[i..]) {
+                return Ok((i, PrimaryExpression::ParenthesizedExpression(Box::new(val))));
+            }
+        }
+        Err(ParseError::InvalidInput {
+            pointer: 0,
+            ctx: parse_utils::gen_error_ctx(text, 0, ERR_CONTEXT_SIZE),
+        })
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -103,27 +146,16 @@ mod tests {
         r#" Source{ [ value ] }[txt]"#,
         25,
         FieldAccess::new(
-            Some(
-                PrimaryExpression::ItemAccess(
-                    Box::new(ItemAccess::new (
-                        PrimaryExpression::Identifier(Identifier::new("Source")),
-                        Expression::Primary(
-                            PrimaryExpression::FieldAccess( 
-                                Box::new(
-                                FieldAccess::new (
-                                    None,
-                                    Identifier::new("value")
-                                ))
-                            )
-                        )
-                    )
-                    )
-                )),
-
+            Some(PrimaryExpression::ItemAccess(Box::new(ItemAccess::new(
+                PrimaryExpression::Identifier(Identifier::new("Source")),
+                Expression::Primary(PrimaryExpression::FieldAccess(Box::new(FieldAccess::new(
+                    None,
+                    Identifier::new("value")
+                ))))
+            )))),
             Identifier::new("txt")
         )
-    )
-    ]
+    )]
     fn test_item_and_field_access_expression(
         #[case] input_text: &str,
         #[case] exp_delta: usize,
@@ -135,5 +167,4 @@ mod tests {
         assert_eq!(exp_delta, delta);
         assert_eq!(exp_field, field);
     }
-
 }
