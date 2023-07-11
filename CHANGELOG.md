@@ -17,9 +17,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Features
 
 - Add Nullable Type expressions
+- Add Function Expressions
+- Add Comment skipping
+- Add If Expressions
+- Complete Logical Expressions
 
 ### Bugfixes
 
+- Allow for empty lists
+- Add Ampersand as valid operator
+- Add open Bracket, open Parenthesis as each expression continuators
+- Move LogialOr up in priority
+- Make Literals the first attempted parse
+- Fix null seperator
+- Fix off by one error
 
 ## [v0.1.0] - 2023-06-28
 
