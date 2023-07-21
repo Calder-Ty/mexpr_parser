@@ -20,7 +20,7 @@ jobs:
       - name: Run tests
         run: cargo test --verbose
       - name: Store Artifact
-        uses: softprops/action-gh-release@1
+        uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: target/release/mexpr_parser
