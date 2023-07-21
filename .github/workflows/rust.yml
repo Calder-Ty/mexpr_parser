@@ -26,5 +26,5 @@ jobs:
           files: target/release/mexpr_parser
           body_path: CHANGELOG.md
 
-  permissions:
-    contents: write
+    permissions:
+      contents: write
