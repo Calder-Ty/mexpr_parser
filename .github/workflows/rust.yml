@@ -21,9 +21,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install Git 
+        if: ${{ matrix.target.container == 'quay.io/pypa/manylinux2014_x86_64' }}
         run: |
           apt update -
-          apt install -y git 
+          apt install -y git
       - name: Checkout Code
         uses: actions/checkout@v3
 
