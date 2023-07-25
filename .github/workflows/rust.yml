@@ -64,7 +64,7 @@ jobs:
           path: artifacts
 
       - name: Debugger
-        run: ls artifacts/*
+        run: ls artifacts/mexpr_parser/*
 
       - name: release new version
         uses: softprops/action-gh-release@v1
