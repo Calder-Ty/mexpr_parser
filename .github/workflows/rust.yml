@@ -39,7 +39,7 @@ jobs:
       - name: Build
         run: |
           cargo build --verbose --release --target ${{ matrix.toolchain.target }}
-          mv ./target/${{ matrix.toolchain.target }}/mexpr_parser mexpr_parser.${{ matrix.toolchain.target }}
+          mv target/${{ matrix.toolchain.target }}/release/mexpr_parser mexpr_parser.${{ matrix.toolchain.target }}
 
       - name: Run tests
         if: startsWith( ${{ matrix.toolchain.target }} , 'x86_64' )
