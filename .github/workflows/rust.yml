@@ -12,6 +12,8 @@ env:
 
 jobs:
   build-and-test:
+    permissions:
+      contents: write
     strategy:
       matrix:
         toolchain: [
@@ -21,10 +23,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install Git 
-        if: ${{ matrix.target.container == 'quay.io/pypa/manylinux2014_x86_64' }}
+        if: ${{ matrix.target.container == 'quay.io/pypa/manylinux2014_aarch64' }}
         run: |
-          apt update -
-          apt install -y git
+          yum update -
+          yum install -y git
       - name: Checkout Code
         uses: actions/checkout@v3
 
@@ -55,5 +57,3 @@ jobs:
           files: target/${{ matrix.toolchain.target }}/release/mexpr_parser
           body_path: CHANGELOG.md
 
-    permissions:
-      contents: write
