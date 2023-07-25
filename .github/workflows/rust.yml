@@ -20,6 +20,10 @@ jobs:
     container: ${{ matrix.toolchain.container }} 
     runs-on: ubuntu-latest
     steps:
+      - name: Install Git 
+        runs: |
+          apt update -
+          apt install -y git 
       - name: Checkout Code
         uses: actions/checkout@v3
 
