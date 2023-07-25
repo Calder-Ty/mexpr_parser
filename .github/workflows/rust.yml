@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install Git 
-        if: ${{ matrix.target.container == 'quay.io/pypa/manylinux2014_aarch64' }}
+        if: ${{ matrix.toolchain.container == 'quay.io/pypa/manylinux2014_aarch64' }}
         run: |
           yum update -
           yum install -y git
