@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Install Git 
-        runs: |
+        run: |
           apt update -
           apt install -y git 
       - name: Checkout Code
