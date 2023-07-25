@@ -9,6 +9,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  ACTIONS_STEP_DEBUG: true
 
 jobs:
   build-and-test:
@@ -65,7 +66,7 @@ jobs:
           path: /tmp/artifacts
 
       - name: Debugger
-        run: ls /tmp/artifacts/mexpr_parser.x86_64-unknown-linux-gnu
+        run: ls -lah /tmp/artifacts
 
       - name: release new version
         uses: softprops/action-gh-release@v1
