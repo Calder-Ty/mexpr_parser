@@ -25,6 +25,10 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v3
 
+      - name: Install Linker
+        if: startsWith(${{ matrix.toolchain.target }}, "aarch64" )
+        run: yum install gcc-aarch64-linux-gnu
+
       - name: Install toolchain
         uses: actions-rs/toolchain@v1
         with:
