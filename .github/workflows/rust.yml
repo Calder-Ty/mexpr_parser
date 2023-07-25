@@ -35,7 +35,7 @@ jobs:
         run: cargo build --verbose --release --target ${{ matrix.toolchain.target }}
 
       - name: Run tests
-        if: ${{ startsWith(matrix.toolchain.target, "x86_64") }}
+        if: startsWith( ${{ matrix.toolchain.target }} , 'x86_64' )
         run: cargo test --verbose --target ${{ matrix.toolchain.target }}
 
       - name: upload artifact
