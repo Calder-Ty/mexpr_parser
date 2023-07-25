@@ -17,16 +17,11 @@ jobs:
     strategy:
       matrix:
         toolchain: [
-          {target: aarch64-unknown-linux-gnu, container: quay.io/pypa/manylinux2014_aarch64},
+          {target: aarch64-unknown-linux-gnu, container:quay.io/pypa/manylinux2014_x86_64},
           {target: x86_64-unknown-linux-gnu, container: quay.io/pypa/manylinux2014_x86_64}]
     container: ${{ matrix.toolchain.container }} 
     runs-on: ubuntu-latest
     steps:
-      - name: Install Git 
-        if: ${{ matrix.toolchain.container == 'quay.io/pypa/manylinux2014_aarch64' }}
-        run: |
-          yum update -
-          yum install -y git
       - name: Checkout Code
         uses: actions/checkout@v3
 
@@ -40,6 +35,7 @@ jobs:
         run: cargo build --verbose --release --target ${{ matrix.toolchain.target }}
 
       - name: Run tests
+        if: ${{ startsWith(matrix.toolchain.target, "x86_64" }}
         run: cargo test --verbose --target ${{ matrix.toolchain.target }}
 
       - name: upload artifact
